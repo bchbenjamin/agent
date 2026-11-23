@@ -1,0 +1,79 @@
+# Upstream Dependencies Manifest
+# Tracks external software, pinned versions, licenses, and verification procedures.
+version: 1
+
+dependencies:
+  hermes-agent:
+    name: "Hermes Agent"
+    repository: "https://github.com/NousResearch/hermes-agent"
+    pinned_version: "v0.23.3"
+    pinned_commit: "caafe5389ae5"
+    license: "Apache-2.0"
+    install_method: "curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash"
+    integration_method: "Background gateway service (systemd user unit) exposed on 127.0.0.1:8642"
+    patches: []
+    verification:
+      command: "hermes --version"
+      expected_output_contains: "0.23.3"
+
+  computer-use-linux:
+    name: "Computer Use Linux"
+    repository: "https://github.com/agent-sh/computer-use-linux"
+    pinned_version: "v0.7.59"
+    license: "MIT"
+    install_method: "Prebuilt Linux ARM64 binary to /usr/local/bin/computer-use-linux"
+    integration_method: "Hermes skill + stdio MCP tool + Claude Code user plugin"
+    patches: []
+    verification:
+      command: "computer-use-linux --version"
+      expected_output_contains: "0.7.59"
+
+  beeper-desktop:
+    name: "Beeper Desktop"
+    repository: "https://github.com/beeper"
+    official_download_url: "https://download.beeper.com"
+    pinned_version: "4.3.340"
+    architecture: "arm64"
+    license: "Proprietary"
+    install_method: "AppImage execution in persistent user home (~/Applications/Beeper-4.3.340-arm64.AppImage)"
+    integration_method: "Local REST & MCP API on 127.0.0.1:23373/v0/mcp with OAuth 2.0 PKCE"
+    patches: []
+    verification:
+      command: "curl -s -i http://127.0.0.1:23373/v0/mcp"
+      expected_status: 401
+
+  morphic:
+    name: "Morphic AI Search & Chat Frontend"
+    repository: "https://github.com/miurla/morphic"
+    pinned_version: "v1.2.0"
+    license: "Apache-2.0"
+    install_method: "Docker container / Node.js web application"
+    integration_method: "Frontend for Personal AI API via https://hermes.bchbenjamin.in"
+    patches:
+      - id: "patch-001-personal-api-auth"
+        description: "Bearer token forwarding to api.hermes.bchbenjamin.in"
+        file: "upstreams/patches/morphic-api-auth.patch"
+    verification:
+      command: "curl -sI https://hermes.bchbenjamin.in"
+      expected_status: 200
+
+  simular-box:
+    name: "Simular Box Remote Execution MCP"
+    repository: "https://github.com/simular-ai"
+    service_endpoint: "https://mcp.box.simular.ai/mcp"
+    license: "Proprietary / SaaS"
+    install_method: "Streamable HTTP MCP endpoint"
+    integration_method: "Hermes MCP server declaration with Bearer token authentication"
+    patches: []
+    verification:
+      command: "hermes mcp test simular_box"
+      expected_output_contains: "Connected"
+
+interfaces:
+  ai-gateway:
+    name: "Independent AI Gateway"
+    interface_url: "https://ai.bchbenjamin.in/codex/v1"
+    layer: "Layer 1 (External Model Inference)"
+    protocol: "OpenAI-compatible Chat Completions (/codex/v1/chat/completions)"
+    credentials_storage: "AI_GATEWAY_API_KEY in private node .env"
+    isolation_rule: "Inference queries outbound only; no inbound access into Layer 2 infrastructure."

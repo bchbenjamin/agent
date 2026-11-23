@@ -1,0 +1,10 @@
+# Simular Box MCP integration configuration
+# Secrets live in .env as MCP_BOX_API_KEY
+mcp_servers:
+  simular_box:
+    url: https://mcp.box.simular.ai/mcp
+    headers:
+      Authorization: "Bearer ${MCP_BOX_API_KEY}"
+    trust: untrusted
+    timeout: 300
+    connect_timeout: 60

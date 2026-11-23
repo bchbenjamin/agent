@@ -1,0 +1,87 @@
+# Personal AI Infrastructure - Git Ignore Rules
+# Strict exclusion of secrets, private databases, application state, and ephemeral files.
+
+# Environment and secrets
+.env
+.env.*
+*.env
+*.key
+*.pem
+*.crt
+*.pfx
+*.p12
+*.secret
+secrets/
+private/
+auth.json
+auth.lock
+oauth_creds.json
+mcp-tokens/
+install_id
+.install_id.lock
+
+# Exclude private credentials but keep templates
+!.env.example
+!*.template
+!*.template.*
+
+# Application profiles and user databases
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.db.dispatch.lock
+*.db.init.lock
+*.keyring
+keyrings/
+BeeperTexts/
+.config/
+.local/share/
+.cache/
+
+# Runtime and ephemeral state
+*.pid
+*.sock
+*.lock
+logs/
+*.log
+runtime/
+terminal-sessions/
+kanban/
+
+# Backups and recovery directories (keep backups/README.md)
+backups/*
+!backups/README.md
+SSD-Recovery-*/
+*-backup-*/
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.zip
+*.enc
+*.bak
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Images and UI captures
+*.png
+*.jpg
+*.jpeg
+*.tsv
+/tmp/
+
+# OS artifacts
+.DS_Store
+Thumbs.db

@@ -1,0 +1,21 @@
+[Unit]
+Description=Beeper Desktop Messaging Service
+After=network.target graphical.target user-1000.slice
+Wants=graphical.target
+
+[Service]
+Type=simple
+User=bchbenjamin
+Group=bchbenjamin
+WorkingDirectory=/home/bchbenjamin
+Environment="DISPLAY=:0"
+Environment="WAYLAND_DISPLAY=wayland-0"
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
+Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 60); do [ -S /run/user/1000/wayland-0 ] && exit 0; sleep 1; done; exit 1'
+ExecStart=/home/bchbenjamin/Applications/Beeper-4.3.340-arm64.AppImage
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

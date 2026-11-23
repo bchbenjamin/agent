@@ -1,0 +1,5 @@
+# Telegram Webhook Configuration Template
+# Populate in private environment; do NOT commit secrets.
+TELEGRAM_BOT_TOKEN=replace-with-bot-token
+TELEGRAM_WEBHOOK_URL=https://api.hermes.bchbenjamin.in/v1/integrations/telegram/webhook
+TELEGRAM_ALLOWED_USER_IDS=replace-with-authorized-telegram-user-id

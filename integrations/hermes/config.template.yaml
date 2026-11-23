@@ -1,0 +1,36 @@
+# Hermes upstream provider configuration template
+# Connects Hermes to the independent Layer 1 AI Gateway
+providers:
+  ai-gateway:
+    api: https://ai.bchbenjamin.in/codex/v1
+    key_env: AI_GATEWAY_API_KEY
+    transport: chat_completions
+    default_model: ai-gateway
+
+model:
+  default: ai-gateway
+  provider: custom:ai-gateway
+  reasoning_effort: low
+
+gateway:
+  api_server:
+    max_concurrent_runs: 2
+    history_tool_output_max_chars: 20000
+
+mcp_servers:
+  simular_box:
+    url: https://mcp.box.simular.ai/mcp
+    headers:
+      Authorization: "Bearer ${MCP_BOX_API_KEY}"
+    trust: untrusted
+    timeout: 300
+    connect_timeout: 60
+  beeper:
+    url: http://127.0.0.1:23373/v0/mcp
+    auth: oauth
+    trust: untrusted
+    timeout: 120
+    connect_timeout: 15
+
+computer_use:
+  native_wayland: true

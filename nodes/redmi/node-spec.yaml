@@ -1,0 +1,27 @@
+# Redmi Note 5 Pro - Future Node Specification
+node_id: "redmi"
+hostname: "redmi-note5pro"
+tier: "edge_mobile_worker"
+
+hardware:
+  model: "Xiaomi Redmi Note 5 Pro (whyred)"
+  soc: "Qualcomm Snapdragon 636"
+  architecture: "aarch64"
+  ram_total_mb: 4096
+  storage_internal: "64 GB eMMC"
+
+os:
+  type: "Linux environment (proot/chroot/native postmarketOS)"
+  notes: "Do not assume DroidSpaces or root is pre-installed. Deploy via standalone rootfs bootstrap."
+  primary_user: "bchbenjamin"
+
+planned_responsibilities:
+  - "Auxiliary Beeper bridge & messaging worker"
+  - "Isolated background development test workloads"
+  - "Low-power edge execution node"
+
+network:
+  tailscale_enabled: true
+  connectivity: "Wi-Fi (802.11ac)"
+
+status: "staged_for_deployment"

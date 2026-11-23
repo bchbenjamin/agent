@@ -1,0 +1,5 @@
+{
+  "apiBaseUrl": "https://api.hermes.bchbenjamin.in",
+  "clientType": "morphic-frontend",
+  "authMethod": "bearer_token"
+}

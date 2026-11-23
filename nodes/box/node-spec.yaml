@@ -1,0 +1,28 @@
+# Simular Box - Managed Node Specification
+node_id: "box"
+hostname: "hermes-box"
+tier: "auxiliary_compute_sandbox"
+
+hardware:
+  platform: "Simular Box Virtual Machine"
+  architecture: "x86_64"
+  ram_total_mb: 4096
+  storage_overlay_gb: 20
+
+os:
+  distribution: "Ubuntu 24.04.5 LTS"
+  kernel: "Linux 6.8.x x86_64"
+
+roles:
+  - "Remote browser automation sandbox"
+  - "Stateless x86_64 compilation and evaluation"
+  - "Simular Box Streamable HTTP MCP Worker"
+
+endpoints:
+  mcp_url: "https://mcp.box.simular.ai/mcp"
+  transport: "streamable_http"
+  auth_type: "bearer_token (MCP_BOX_API_KEY)"
+
+constraints:
+  - "Ephemeral overlay: Do not store persistent personal data, state, or long-term databases on Box."
+  - "Not a permanent host for memory-intensive services."

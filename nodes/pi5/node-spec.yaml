@@ -1,0 +1,106 @@
+# Raspberry Pi 5 - Managed Node Specification
+node_id: "pi5"
+hostname: "raspberrypi"
+tier: "primary_worker"
+
+hardware:
+  model: "Raspberry Pi 5 Model B Rev 1.0"
+  ram_total_mb: 4096
+  architecture: "aarch64"
+  cpu_cores: 4
+
+storage:
+  boot_drive:
+    device: "/dev/mmcblk0"
+    type: "microSD"
+    capacity: "64 GB"
+    partitions:
+      - name: "bootfs"
+        device: "/dev/mmcblk0p1"
+        mount: "/boot/firmware"
+        fstype: "vfat"
+        uuid: "1080-F633"
+      - name: "rootfs"
+        device: "/dev/mmcblk0p2"
+        mount: "/"
+        fstype: "ext4"
+        uuid: "a3680812-f783-41ac-ab86-ac9e13347b2c"
+  secondary_drive:
+    device: "/dev/sda"
+    type: "SATA SSD (OSC 256GB via USB-SATA 14cd:6116 bridge)"
+    serial: "OSC20091900000001448"
+    capacity: "256 GB"
+    table: "GPT"
+    partition:
+      device: "/dev/sda1"
+      label: "PI_DATA"
+      fstype: "ext4"
+      mount: "/mnt/pi_data"
+      uuid: "cbdf283b-2951-44de-945e-c082bf87f337"
+      mount_options: "defaults,nofail,x-systemd.device-timeout=10s"
+      trim_supported: false
+
+os:
+  distribution: "Debian GNU/Linux 13 (trixie)"
+  kernel: "6.18.50+rpt-rpi-2712"
+  primary_user: "bchbenjamin"
+  uid: 1000
+  gid: 1000
+
+display:
+  mode: "headless"
+  display_manager: "lightdm.service"
+  compositor: "labwc -m"
+  virtual_output: "NOOP-1 (1920x1080)"
+  sockets:
+    wayland: "/run/user/1000/wayland-0"
+    xwayland: ":0"
+    dbus: "/run/user/1000/bus"
+  remote_vnc: "wayvnc.service"
+
+services:
+  systemd_system:
+    - name: "beeper.service"
+      role: "Beeper Desktop Messaging Service"
+      user: "bchbenjamin"
+      auto_start: true
+    - name: "lightdm.service"
+      role: "Headless Labwc Desktop Session"
+      auto_start: true
+    - name: "wayvnc.service"
+      role: "Headless VNC Server"
+      auto_start: true
+    - name: "tailscaled.service"
+      role: "Tailnet Private Mesh"
+      auto_start: true
+  systemd_user:
+    - name: "hermes-gateway-e86e8d0b.service"
+      role: "Hermes Agent Gateway & API Server"
+      lingering: true
+      auto_start: true
+    - name: "at-spi-dbus-bus.service"
+      role: "Accessibility D-Bus Bus"
+      auto_start: true
+
+integrations:
+  hermes:
+    version: "v0.23.3"
+    home_dir: "/home/bchbenjamin/.hermes-pi"
+    upstream_provider: "ai-gateway (https://ai.bchbenjamin.in/codex/v1)"
+    api_server: "127.0.0.1:8642"
+  beeper:
+    version: "4.3.340-arm64"
+    appimage_path: "/home/bchbenjamin/Applications/Beeper-4.3.340-arm64.AppImage"
+    api_endpoint: "http://127.0.0.1:23373/v0/mcp"
+    mcp_auth: "oauth2"
+  computer_use:
+    binary_path: "/usr/local/bin/computer-use-linux"
+    version: "v0.7.59"
+    uinput_rules: "/etc/udev/rules.d/99-uinput.rules"
+  simular_box:
+    endpoint: "https://mcp.box.simular.ai/mcp"
+    transport: "streamable_http"
+
+network:
+  tailscale_ip: "100.73.46.31"
+  kde_connect: "active (kdeconnectd)"
