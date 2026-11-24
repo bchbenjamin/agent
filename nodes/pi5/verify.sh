@@ -1,60 +1,66 @@
 #!/usr/bin/env bash
-# Verification Suite for Raspberry Pi 5 Managed Node
-set -euo pipefail
+# Read-only health checks for the Pi 5 Personal AI node.
+set -u
+HERMES_HOME="${HERMES_HOME:-$HOME/.hermes-pi}"
+printf '=== Raspberry Pi 5 / Personal AI Verification ===\n'
 
-HERMES_HOME=${HERMES_HOME:-"$HOME/.hermes-pi"}
-export HERMES_HOME
+check_service() {
+  local unit="$1" state
+  state="$(systemctl is-active "$unit" 2>/dev/null || true)"
+  printf '  %-30s %s\n' "$unit" "${state:-unknown}"
+}
 
-printf '=== Verifying Node: Raspberry Pi 5 ===\n\n'
+echo '1. Core system services'
+for svc in beeper.service lightdm.service wayvnc.service tailscaled.service; do check_service "$svc"; done
 
-# 1. System Services
-printf '1. Checking System Services:\n'
-for svc in beeper.service lightdm.service wayvnc.service tailscaled.service; do
-  status=$(systemctl is-active "$svc" 2>/dev/null || echo "inactive")
-  printf '  - %-22s : %s\n' "$svc" "$status"
-  [ "$status" = "active" ] || echo "    WARNING: $svc is not active"
-done
+echo '\n2. Personal AI services'
+for svc in personal-ai-api.service personal-ai-mcp.service personal-ai-node.service; do check_service "$svc"; done
 
-# 2. User Services
-printf '\n2. Checking User Services:\n'
-for svc in at-spi-dbus-bus.service; do
-  status=$(systemctl --user is-active "$svc" 2>/dev/null || echo "inactive")
-  printf '  - %-22s : %s\n' "$svc" "$status"
-done
+echo '\n3. API health'
+curl -fsS --max-time 5 http://127.0.0.1:8000/health || echo '  Personal AI API unavailable'
 
-# 3. Hermes Gateway & Local API
-printf '\n3. Checking Hermes Gateway:\n'
+echo '\n4. MCP authentication boundary (401 expected without a token)'
+code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:8765/mcp || echo 000)"
+printf '  MCP unauthenticated status: HTTP %s\n' "$code"
+[ "$code" = 401 ] || echo '  WARNING: MCP should reject requests without a bearer token.'
+
+echo '\n5. Node agent identity'
+if systemctl is-active --quiet personal-ai-node.service; then
+  pid="$(systemctl show -p MainPID --value personal-ai-node.service)"
+  if [ "$pid" -gt 0 ] 2>/dev/null; then
+    ps -o user=,pid=,args= -p "$pid"
+  fi
+else
+  echo '  Node agent not active'
+fi
+
+echo '\n6. Hermes local API'
+curl -fsS --max-time 5 http://127.0.0.1:8642/health || echo '  Hermes API unavailable'
+
+echo '\n7. Beeper local MCP endpoint'
+beeper_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:23373/v0/mcp || echo 000)"
+printf '  Beeper endpoint: HTTP %s (401 is expected before OAuth)\n' "$beeper_code"
+
+echo '\n8. Data SSD'
+if mountpoint -q /mnt/pi_data; then
+  printf '  UUID: '; findmnt -n -o UUID --target /mnt/pi_data
+  df -h /mnt/pi_data | tail -1
+  if [ -f /mnt/pi_data/personal-ai/pai.sqlite3 ]; then
+    stat -c '  Database owner/mode: %U:%G %a' /mnt/pi_data/personal-ai/pai.sqlite3
+  fi
+else
+  echo '  /mnt/pi_data NOT MOUNTED'
+fi
+
+echo '\n9. Hermes user services'
+systemctl --user is-active hermes-gateway-e86e8d0b.service 2>/dev/null || true
+systemctl --user is-active at-spi-dbus-bus.service 2>/dev/null || true
+
+echo '\n10. Computer Use'
 if command -v hermes >/dev/null 2>&1; then
-  hermes gateway status || echo "Gateway status check completed."
-  api_health=$(curl -fsS --max-time 5 http://127.0.0.1:8642/health 2>/dev/null || echo "UNAVAILABLE")
-  printf '  - Local API (8642)     : %s\n' "$api_health"
+  HERMES_HOME="$HERMES_HOME" hermes computer-use doctor 2>&1 | tail -30 || true
 else
-  echo '  - Hermes CLI not installed'
+  echo '  Hermes CLI not installed'
 fi
 
-# 4. Beeper Local API
-printf '\n4. Checking Beeper Local API:\n'
-beeper_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://127.0.0.1:23373/v0/mcp || echo "000")
-printf '  - Beeper API (23373)   : HTTP %s\n' "$beeper_status"
-
-# 5. Storage
-printf '\n5. Checking Storage Mounts:\n'
-if grep -qs '/mnt/pi_data' /proc/mounts; then
-  avail=$(df -h /mnt/pi_data | awk 'NR==2 {print $4}')
-  printf '  - /mnt/pi_data (SSD)   : Mounted (%s available)\n' "$avail"
-else
-  printf '  - /mnt/pi_data (SSD)   : NOT MOUNTED\n'
-fi
-
-# 6. Computer-Use Linux Doctor
-printf '\n6. Checking Computer-Use Linux:\n'
-if command -v computer-use-linux >/dev/null 2>&1; then
-  export WAYLAND_DISPLAY="wayland-0"
-  export DISPLAY=":0"
-  export XDG_RUNTIME_DIR="/run/user/1000"
-  doc_out=$(computer-use-linux doctor 2>/dev/null || echo '{"readiness":{"blockers":["Failed to run"]}}')
-  blockers=$(echo "$doc_out" | grep -o '"blockers":\s*\[[^]]*\]' || echo '"blockers": []')
-  printf '  - Diagnostics          : %s\n' "$blockers"
-fi
-
-printf '\n=== Node Verification Complete ===\n'
+echo '\n=== Verification checks complete; review all warnings above. ==='

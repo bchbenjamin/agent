@@ -9,6 +9,7 @@ if REPO_ROOT not in sys.path:
 
 from integrations.beeper.client import check_beeper_api
 
+@unittest.skipUnless(os.getenv("PAI_RUN_EXTERNAL_INTEGRATION") == "1", "set PAI_RUN_EXTERNAL_INTEGRATION=1 to call the Pi Beeper endpoint")
 class TestBeeperMCP(unittest.TestCase):
 
     def test_beeper_local_api(self):

@@ -1,0 +1,26 @@
+[Unit]
+Description=Personal AI MCP Protocol Adapter
+After=personal-ai-api.service
+Requires=personal-ai-api.service
+
+[Service]
+Type=simple
+User=pai-mcp
+Group=pai-mcp
+WorkingDirectory=/opt/personal-ai
+EnvironmentFile=/etc/personal-ai/mcp.env
+Environment=PAI_MCP_TRANSPORT=streamable-http
+Environment=PAI_MCP_HOST=127.0.0.1
+Environment=PAI_MCP_PORT=8765
+ExecStart=/opt/personal-ai/.venv/bin/python -m pai_mcp.server
+Restart=always
+RestartSec=5
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/pai-mcp
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

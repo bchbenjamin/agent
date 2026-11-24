@@ -1,0 +1,25 @@
+[Unit]
+Description=Personal AI Node Agent
+After=network-online.target personal-ai-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pai-agent
+Group=pai-agent
+WorkingDirectory=/opt/personal-ai
+EnvironmentFile=-/etc/personal-ai/node.env
+Environment=PAI_EXECUTION_HELPER=/usr/local/libexec/pai-privileged
+Environment=PAI_NODE_AGENT_REQUIRE_USER_HELPER=true
+ExecStart=/opt/personal-ai/.venv/bin/python -m node_agent.cli
+Restart=always
+RestartSec=5
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/bchbenjamin /mnt/pi_data /var/lib/pai-agent
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

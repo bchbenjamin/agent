@@ -1,0 +1,1 @@
+"""MCP protocol adapter for Personal AI API."""

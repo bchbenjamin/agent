@@ -1,0 +1,23 @@
+[Unit]
+Description=Personal AI API and Control Plane
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pai-api
+Group=pai-api
+WorkingDirectory=/opt/personal-ai
+EnvironmentFile=/etc/personal-ai/api.env
+ExecStart=/opt/personal-ai/.venv/bin/uvicorn personal_ai_api.server.app:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/mnt/pi_data/personal-ai /var/lib/pai-api
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

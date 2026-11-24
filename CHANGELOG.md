@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 — Personal AI control plane implementation
+
+- Added persistent SQLite storage for client/node credentials, node heartbeats, tasks, context documents and hash-chained audit events.
+- Added FastAPI authentication, node enrollment/revocation, outbound task polling, approval queue, task results and context search.
+- Added unprivileged pai-agent daemon with bounded argv execution, approval-gated shell/sensitive operations and restricted systemd helper.
+- Added official Python MCP SDK adapter with stdio and authenticated Streamable HTTP transports.
+- Added isolated pai-api, pai-mcp and pai-agent service accounts; task processes cannot read the API database or node credential.
+- Added a durable local task-result spool so completed work survives API restarts.
+- Added a context:write-only indexing credential and API route, separate from context:read.
+- Added Pi installer, systemd units, scoped credential CLI, context indexer and end-to-end tests.
+
 All notable changes to the Personal AI Infrastructure repository will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

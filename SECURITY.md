@@ -1,70 +1,56 @@
 # Security Model & Policy
 
-## 1. Threat Model & Boundaries
+## 1. Threat model and boundaries
 
-The security posture assumes that:
-- External model inference endpoints may be subject to prompt injection or malicious input.
-- Local nodes contain personal communication history, encrypted credentials, and private documents.
-- Physical devices may undergo unexpected network reconfigurations.
+The design assumes external inference endpoints may return prompt-injected content and local nodes contain personal messages, credentials and private files.
 
 ### Mitigations
-1. **Strict Layer Isolation**:
-   The AI Gateway has no network path into local nodes. It exposes only completion APIs.
-2. **Permission Scoping**:
-   All Personal AI API interactions are governed by least-privilege tokens.
-3. **Approval Gates for Destructive Actions**:
-   Disk repartitioning, file deletion, and privileged package installations require interactive two-factor approval.
-4. **Zero Secrets in Repository**:
-   No cryptographic keys, tokens, or environment files are ever stored in Git.
 
----
+1. **Strict layer isolation**: ai.bchbenjamin.in is inference-only. It has no Personal AI API credentials, node routes or access to personal context.
+2. **Per-client authorization**: every API and MCP client uses an independent bearer token with explicit scopes.
+3. **Account separation**: the API database belongs to pai-api, MCP runs as pai-mcp, and the node daemon runs as pai-agent. Task processes run as bchbenjamin through a fixed helper, not as root.
+4. **Outbound node protocol**: nodes authenticate to the API and poll for work; no public inbound node-agent port is opened.
+5. **Narrow privileged helper**: the root-owned helper permits only an allowlisted systemd restart or execution as the normal bchbenjamin user. It does not accept arbitrary root commands.
+6. **Approval gates**: explicit shell, disk mutation, recursive deletion, package/system changes and service restarts are held until a separate client with tasks:approve approves the task.
+7. **Secret hygiene**: no active tokens, environment files, databases or keyrings belong in Git. The node credential is stored under /var/lib/pai-agent; the admin token is root-only at /etc/personal-ai/admin-token; the API database is inaccessible to task processes running as bchbenjamin.
+8. **Audit**: sensitive operations and task outcomes are recorded in a persistent SHA-256 hash chain. Audit details deliberately exclude command output and private content.
 
-## 2. Permission Scopes
+## 2. Permission scopes
 
-The Personal AI API enforces granular scopes:
+| Scope | Category | Description | Approval |
+|---|---|---|---|
+| context:read | Read | Search explicitly indexed personal context | No |
+| context:write | Write | Add documents through the context index API | Separate indexer token |
+| nodes:read | Read | List nodes, inspect status, request service status | No |
+| files:read | Read | Reserved for future structured file tools | No |
+| files:write | Write | Reserved for future structured file tools | Depends on operation |
+| terminal:execute | Execute | Run argv tasks in the user's unprivileged context | Sensitive commands require approval |
+| services:manage | Admin | Request allowlisted service restart/status | Restart requires approval |
+| deploy:execute | Admin | Reserved for deployment operations | Not yet exposed |
+| tasks:approve | Approval | List and approve pending high-impact tasks | Explicit separate action |
+| nodes:admin | Admin | Administrative override for scopes and node management | Owner-only |
 
-| Scope | Category | Description | Requires Elevation |
-| :--- | :--- | :--- | :--- |
-| `context:read` | Read | Read personal notes, preferences, and indexed documentation | No |
-| `nodes:read` | Read | Query node health, status, CPU/RAM, and uptime | No |
-| `files:read` | Read | Read files within authorized directory sandboxes | No |
-| `files:write` | Write | Write or modify files in user workspaces | Yes (if outside workspace) |
-| `terminal:execute` | Execute | Execute command line processes in user sandbox | Yes (if non-whitelisted) |
-| `services:manage` | Admin | Restart, stop, or inspect system services | Yes |
-| `deploy:execute` | Admin | Trigger node upgrades, package installations | Yes |
-| `nodes:admin` | Admin | Add, deprovision, or reconfigure node topology | Yes |
+The current task API exposes argv execution, explicitly approved shell execution, service status and allowlisted service restart. It does not expose an unrestricted root shell.
 
----
+## 3. Credential segregation
 
-## 3. Credential Segregation
+1. AI Gateway key — authenticates Hermes to the independent inference service.
+2. Personal AI client token — authenticates Morphic, Hermes or each MCP client.
+3. Node token — authenticates the pai-agent daemon to the Personal AI API.
+4. Node enrollment secret — one-time bootstrap credential, removed from the API service environment after initial enrollment.
+5. Context-index token — grants context:write only; it cannot read indexed content or submit tasks.
+6. Bootstrap admin token — stored root-only at /etc/personal-ai/admin-token.
+7. Simular Box key — authenticates the Box MCP client.
+8. Beeper OAuth — remains local to Beeper/Hermes.
 
-Independent cryptographic credentials are used across the infrastructure:
+Tokens are random and only their SHA-256 hashes are persisted. The plaintext client or node token is returned only at issuance/enrollment.
 
-```text
-1. AI Gateway Client Key       -> Authenticates Hermes/Claude to https://ai.bchbenjamin.in
-2. Personal AI API Token       -> Authenticates clients (Morphic, Telegram) to Personal AI API
-3. Node Agent Secret           -> Mutual authentication between Node Agent and Control Plane
-4. Simular Box API Key         -> Authenticates Simular Box MCP worker
-5. Beeper Local OAuth          -> Local token stored in private SQLite/JSON, never shared
-```
+## 4. Audit logging
 
----
+Audit events include event ID, timestamp, client/user, node, operation, resource, approval state, result, client IP, details, previous hash and event hash. The hash covers the event ID and canonical event body plus the previous event hash.
 
-## 4. Audit Logging Standard
+Verify the chain with:
 
-Every sensitive request processed by the Control Plane emits an immutable audit event:
-```json
-{
-  "event_id": "evt_9f3a8b2c1d0e",
-  "timestamp": "2026-11-23T07:55:00Z",
-  "client_id": "morphic-web-client",
-  "user_identity": "bchbenjamin",
-  "target_node": "pi5",
-  "operation": "services:manage.restart",
-  "target_resource": "beeper.service",
-  "approval_status": "approved_by_user",
-  "result": "success",
-  "client_ip": "100.73.46.31"
-}
-```
-Audit logs are stored in a local append-only log with cryptographic hash-chaining.
+    sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli verify-audit
+
+The chain is tamper-evident, not an immutable or signed ledger. Protect the database with filesystem permissions and encrypted off-device backups. Never store bearer tokens, passwords, command output, message bodies or private file contents in audit details.

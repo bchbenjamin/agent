@@ -1,5 +1,4 @@
-# Hermes upstream provider configuration template
-# Connects Hermes to the independent Layer 1 AI Gateway
+# Hermes configuration for the Pi 5. Secrets are injected from the private .env.
 providers:
   ai-gateway:
     api: https://ai.bchbenjamin.in/codex/v1
@@ -31,6 +30,22 @@ mcp_servers:
     trust: untrusted
     timeout: 120
     connect_timeout: 15
+  personal_ai:
+    url: https://mcp.hermes.bchbenjamin.in/mcp
+    headers:
+      Authorization: "Bearer ${PAI_API_TOKEN}"
+    trust: untrusted
+    timeout: 300
+    connect_timeout: 20
+  # Upstream local stdio MCP. Keep it local; never expose as an unauthenticated HTTP service.
+  computer-use-linux:
+    command: computer-use-linux
+    args: ["mcp"]
+    trust: untrusted
+    timeout: 120
+    connect_timeout: 30
 
+# Preserve the existing Hermes native Wayland desktop-control backend.
+# Review tool discovery after enabling the upstream MCP to avoid duplicate controls.
 computer_use:
   native_wayland: true

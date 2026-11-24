@@ -1,24 +1,11 @@
 # Audit Logging Schema & Policy
 
-## Purpose
-All sensitive operations routed through the Personal AI API or executed on managed nodes emit immutable, structured audit records.
+Sensitive API operations, task submission, approval and node execution results are recorded in SQLite's append-only audit table.
 
-## Audit Record Format
-```json
-{
-  "event_id": "evt_7e2a1b9c3f4d5e6a",
-  "timestamp": "2026-11-23T08:00:00Z",
-  "client_id": "claude-code",
-  "user_identity": "bchbenjamin",
-  "target_node": "pi5",
-  "operation": "terminal:execute",
-  "target_resource": "/home/bchbenjamin/Projects",
-  "approval_status": "approved",
-  "result": "success",
-  "client_ip": "100.73.46.31"
-}
-```
+Each event includes the client/user identity, target node, operation, resource, approval status, result, client IP, details, previous event hash and current SHA-256 event hash. Each event hash covers the previous hash and canonical JSON event body.
 
-## Security Guarantees
-1. **Zero Secret Leakage**: Tokens, private chat data, passwords, and environment keys are strictly redacted before emission.
-2. **Cryptographic Chaining**: Each record's `event_id` is derived from the SHA-256 hash of the previous record plus current event parameters, preventing retro-active alteration.
+Verify the chain:
+
+    python -m personal_ai_api.cli verify-audit
+
+A valid chain detects modification, deletion or reordering of existing records. It does not protect against an attacker who can rewrite the entire database and recompute the chain; use filesystem permissions and encrypted off-device backups as additional controls. Never put tokens, passwords, Beeper messages or private file contents in audit details.

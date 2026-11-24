@@ -1,18 +1,27 @@
-"""Authentication middleware for Personal AI API."""
-from fastapi import HTTPException, Security, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+"""Authentication dependencies for Personal AI API."""
+
 from typing import Callable, Set
 
-# Mock/singleton token manager instance for the API server
-from ...control_plane.authentication.tokens import TokenManager
-from ...control_plane.authorization.scopes import ScopeValidator
+from fastapi import HTTPException, Security, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from control_plane.authentication.tokens import TokenManager
+from control_plane.authorization.scopes import ScopeValidator
 
 token_manager = TokenManager()
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
-def get_current_client(credentials: HTTPAuthorizationCredentials = Security(security)) -> dict:
-    token = credentials.credentials
-    meta = token_manager.verify_token(token)
+
+def get_current_client(
+    credentials: HTTPAuthorizationCredentials | None = Security(security),
+) -> dict:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Bearer token required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    meta = token_manager.verify_token(credentials.credentials)
     if not meta:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -20,6 +29,7 @@ def get_current_client(credentials: HTTPAuthorizationCredentials = Security(secu
             headers={"WWW-Authenticate": "Bearer"},
         )
     return meta
+
 
 def require_scope(required_scope: str) -> Callable:
     def scope_checker(client: dict = Security(get_current_client)) -> dict:
@@ -30,4 +40,5 @@ def require_scope(required_scope: str) -> Callable:
                 detail=f"Operation requires permission scope: {required_scope}",
             )
         return client
+
     return scope_checker

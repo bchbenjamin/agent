@@ -1,87 +1,53 @@
 # Architecture Specification
 
-## 1. Architectural Philosophy
+## 1. Architectural philosophy
 
-The Personal AI Infrastructure is designed around two principles:
-1. **Zero-Trust Separation of Model Inference from Personal State**:
-   External AI models and inference providers have access only to explicitly supplied prompt context. They never possess direct access to storage, network devices, personal message history, or node management.
-2. **Unified Control Plane with Edge Execution**:
-   Control logic, authentication, and task dispatching are centralized in the Personal AI API, while actual execution occurs on dedicated edge nodes (Raspberry Pi 5, mobile nodes, remote sandboxes).
+The system separates model inference from personal state and uses a central control plane with edge execution.
 
----
+- External models receive only prompt context explicitly sent by the agent.
+- The AI Gateway is a separate inference-only service.
+- Personal AI owns client authentication, scopes, approvals, task state, context indexing, node registry and audit.
+- Nodes initiate outbound requests and poll the API; no inbound node listener is required.
 
-## 2. The Two Isolated Layers
+## 2. Two isolated layers
 
-```text
-+-----------------------------------------------------------------------------------+
-|                        LAYER 1: AI GATEWAY (INFERENCE ONLY)                       |
-|                             https://ai.bchbenjamin.in                             |
-|                                                                                   |
-|  - Independent inference router and model provider gateway.                       |
-|  - Endpoints: /codex/v1/chat/completions, /codex/v1/models                        |
-|  - Credential: AI_GATEWAY_API_KEY (Bearer token for completions only)              |
-|  - INGRESS ONLY FROM AUTHORIZED CLIENTS (Hermes, Claude Code, etc.)               |
-|  - ZERO EGRESS INTO PERSONAL CONTEXT, NODES, OR INFRASTRUCTURE.                   |
-+-----------------------------------------------------------------------------------+
-                                        ^
-                                        | POST /codex/v1/chat/completions (Outbound)
-                                        | [Model inference query and completion]
-+-----------------------------------------------------------------------------------+
-|                     LAYER 2: PERSONAL AI INFRASTRUCTURE                           |
-|                                                                                   |
-|   +---------------------------------------------------------------------------+   |
-|   | Domain Entrypoints:                                                       |   |
-|   |  - https://hermes.bchbenjamin.in     -> Morphic Frontend                  |   |
-|   |  - https://api.hermes.bchbenjamin.in -> Personal AI API / Control Plane   |   |
-|   |  - https://mcp.hermes.bchbenjamin.in -> Protocol Adapter (MCP Clients)    |   |
-|   +---------------------------------------------------------------------------+   |
-|                                        |                                          |
-|                                        v                                          |
-|   +---------------------------------------------------------------------------+   |
-|   | Control Plane & Personal AI API:                                          |   |
-|   |  - Authenticates clients (Morphic, Telegram, external MCP clients)        |   |
-|   |  - Evaluates authorization scopes (e.g., context:read, terminal:execute)  |   |
-|   |  - Manages Node Registry and dispatches work via Task Router              |   |
-|   |  - Maintains immutable structured Audit Logs                              |   |
-|   +---------------------------------------------------------------------------+   |
-|                                        |                                          |
-|                     WireGuard / Tailnet Private Overlay                           |
-|                                        |                                          |
-|         +------------------------------+------------------------------+           |
-|         |                                                             |           |
-|         v                                                             v           |
-|   +--------------------------+                                  +-------------+   |
-|   | Node: Raspberry Pi 5     |                                  | Node: Box   |   |
-|   |  - Node Agent Daemon     |                                  |  - Simular  |   |
-|   |  - Hermes Agent Runtime  |                                  |    Worker   |   |
-|   |  - Beeper Desktop API    |                                  |  - Compute  |   |
-|   |  - computer-use-linux    |                                  |    Sandbox  |   |
-|   |  - SSD /mnt/pi_data      |                                  +-------------+   |
-|   +--------------------------+                                                    |
-+-----------------------------------------------------------------------------------+
-```
+Layer 1 — AI Gateway: https://ai.bchbenjamin.in
+- Independent inference router and provider gateway.
+- OpenAI-compatible endpoints under /codex/v1.
+- Authenticates inference clients only.
+- No access to Personal AI API, personal files, nodes, databases or memory.
 
----
+Layer 2 — Personal AI:
+- https://hermes.bchbenjamin.in — Morphic chat UI.
+- https://api.hermes.bchbenjamin.in — Personal AI API and control plane.
+- https://mcp.hermes.bchbenjamin.in/mcp — authenticated MCP adapter.
+- Hermes is the agent runtime and shared context/memory layer.
+- Pi 5 is the primary node; Simular Box is auxiliary; Redmi is staged.
 
-## 3. Protocol Adapters (MCP)
+## 3. Control plane and MCP
 
-Model Context Protocol (MCP) clients (such as Claude Desktop, external IDE agents, or Claude Code) connect via `https://mcp.hermes.bchbenjamin.in`.
+The FastAPI service runs as pai-api and authenticates clients, checks scopes, creates tasks, manages approvals, records audit events and exposes indexed context. SQLite is stored on the SSD and owned by pai-api; the pai-mcp and pai-agent accounts cannot read it. The separate indexer client reads approved user files and submits documents with a context:write-only token.
 
-**Critical Design Rule**: MCP is strictly a **protocol adapter** over the Personal AI API.
-- The MCP server does not implement custom authorization logic, file access, or node communication.
-- Every MCP tool call is mapped directly to an authenticated REST/RPC invocation against `https://api.hermes.bchbenjamin.in`.
-- Client requests present scoped bearer tokens; unauthenticated operations are rejected before reaching execution adapters.
+The MCP server uses the official Python MCP SDK. It is a protocol adapter only:
+- Each HTTP MCP request must carry an API-issued Bearer token.
+- The adapter validates and forwards that same token to the Personal AI API.
+- It does not implement a second authorization policy or execute commands locally.
+- stdio mode uses a client-scoped token from its environment.
 
----
+## 4. Node agent execution model
 
-## 4. Node Agent Execution Model
+Each managed node runs a dedicated unprivileged pai-agent daemon.
+1. The daemon stores its node credential under /var/lib/pai-agent; task processes cannot read that directory.
+2. The daemon sends heartbeats and polls the API for queued tasks.
+3. Normal command execution uses argv and shell=False.
+4. Explicit shell and sensitive commands require a separate approval before dispatch.
+5. The daemon uses a root-owned helper to execute approved user tasks as bchbenjamin or restart allowlisted system services. It never exposes arbitrary root execution.
+6. The task process runs as bchbenjamin and can access the user's ordinary files; it is not granted root.
+7. Results are first persisted under /var/lib/pai-agent/pending-results, then returned to the API. The spool retries after API restarts.
+8. Audit summaries are recorded without logging command output.
 
-Each managed node runs an unprivileged `node-agent` daemon.
-1. **Unprivileged by Default**:
-   The agent runs under a standard non-root user (e.g. `bchbenjamin` on Pi 5).
-2. **Narrowly Scoped Privileged Helper**:
-   System-level modifications (such as mounting storage or restarting systemd units) are restricted to pre-validated commands with specific parameter filters.
-3. **Resilience & Automatic Reconnection**:
-   Node agents maintain an outbound TLS connection over the private tailnet to the Control Plane. If a node loses internet connectivity or reboots, it re-registers automatically upon reconnecting.
-4. **Cloud Portability**:
-   The Control Plane and Personal AI API are designed to run identically on the Raspberry Pi 5 or inside a hardened cloud VM (e.g. Oracle Cloud Infrastructure). The edge nodes remain identical in either topology.
+## 5. Pi 5 placement
+
+The Raspberry Pi 5 hosts the Personal AI API/control plane, MCP adapter, pai-agent daemon, Hermes runtime and Beeper Desktop. Beeper's OAuth MCP endpoint remains bound to 127.0.0.1:23373. Hermes Computer Use remains local to the Pi's Wayland desktop. The 256 GB OSC SSD is data-only at /mnt/pi_data; the 64 GB microSD remains the permanent boot device.
+
+The Simular Box remains an auxiliary execution/browser environment. The Redmi Note 5 Pro is a future node.

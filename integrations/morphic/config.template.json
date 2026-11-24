@@ -1,5 +1,15 @@
 {
   "apiBaseUrl": "https://api.hermes.bchbenjamin.in",
   "clientType": "morphic-frontend",
-  "authMethod": "bearer_token"
+  "authMethod": "bearer_token",
+  "tokenEnvVar": "PAI_API_TOKEN",
+  "serverSideOnly": true,
+  "allowedScopes": [
+    "context:read",
+    "nodes:read",
+    "files:read",
+    "terminal:execute",
+    "services:manage",
+    "tasks:approve"
+  ]
 }

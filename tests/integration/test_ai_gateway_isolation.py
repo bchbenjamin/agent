@@ -8,13 +8,14 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from personal_ai_api.integrations.gateway_client import AIGatewayClient
-from integrations.ai_gateway.client import test_ai_gateway_health
+from integrations.ai_gateway.client import test_ai_gateway_health as check_ai_gateway_health
 
+@unittest.skipUnless(os.getenv("PAI_RUN_EXTERNAL_INTEGRATION") == "1", "set PAI_RUN_EXTERNAL_INTEGRATION=1 to call live services")
 class TestAIGatewayIsolation(unittest.TestCase):
 
     def test_gateway_health(self):
         # AI Gateway public health check with realistic network timeout
-        healthy = test_ai_gateway_health(timeout=20)
+        healthy = check_ai_gateway_health(timeout=20)
         self.assertTrue(healthy, "AI Gateway health endpoint should respond with status ok.")
 
     def test_isolation_architecture_properties(self):

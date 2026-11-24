@@ -1,0 +1,7 @@
+# Install as /etc/sudoers.d/pai-node-agent with mode 0440.
+# pai-agent may invoke only the root-owned helper. The helper permits fixed
+# systemd unit actions and user-exec as bchbenjamin (never arbitrary root shell).
+# Disable cached sudo credentials for the task-execution identity.
+Defaults:pai-agent timestamp_timeout=0
+Defaults:bchbenjamin timestamp_timeout=0
+pai-agent ALL=(root) NOPASSWD: /usr/local/libexec/pai-privileged *

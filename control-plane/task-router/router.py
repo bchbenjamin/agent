@@ -1,8 +1,11 @@
 """Task Router for dispatching workloads to capable nodes."""
-from typing import Dict, Any, Optional
+
+from typing import Any, Dict
+
 from ..api.schema import TaskRequest
-from ..node_registry.registry import NodeRegistry
 from ..authorization.scopes import ScopeValidator
+from ..node_registry.registry import NodeRegistry
+
 
 class TaskRouter:
     """Routes execution tasks to target nodes while enforcing authorization."""
@@ -15,14 +18,17 @@ class TaskRouter:
         if not ScopeValidator.has_scope(granted_scopes, task.required_scope):
             return {
                 "status": "denied",
-                "error": f"Missing required scope: {task.required_scope}"
+                "error": f"Missing required scope: {task.required_scope}",
             }
 
         # 2. Explicit approval check
-        if ScopeValidator.requires_explicit_approval(task.operation) and not task.approved:
+        if (
+            ScopeValidator.requires_explicit_approval(task.operation)
+            and not task.approved
+        ):
             return {
                 "status": "approval_required",
-                "message": f"Operation '{task.operation}' requires explicit approval."
+                "message": f"Operation '{task.operation}' requires explicit approval.",
             }
 
         # 3. Node availability check
@@ -30,18 +36,19 @@ class TaskRouter:
         if not node:
             return {
                 "status": "error",
-                "error": f"Target node '{task.target_node}' not registered."
+                "error": f"Target node '{task.target_node}' not registered.",
             }
 
         if not self.registry.is_online(task.target_node):
             return {
                 "status": "queued",
-                "message": f"Target node '{task.target_node}' is offline. Task queued for reconnect."
+                "message": f"Target node '{task.target_node}' is offline. Task queued for reconnect.",
             }
 
         return {
-            "status": "dispatched",
+            "status": "queued",
             "task_id": task.task_id,
             "target_node": task.target_node,
-            "operation": task.operation
+            "operation": task.operation,
+            "message": "Task is queued for the node's outbound polling loop.",
         }
