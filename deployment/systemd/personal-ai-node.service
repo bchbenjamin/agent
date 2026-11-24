@@ -14,6 +14,7 @@ Environment=PAI_NODE_AGENT_REQUIRE_USER_HELPER=true
 ExecStart=/opt/personal-ai/.venv/bin/python -m node_agent.cli
 Restart=always
 RestartSec=5
+UMask=0077
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=read-only

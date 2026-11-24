@@ -15,6 +15,7 @@ Environment=PAI_MCP_PORT=8765
 ExecStart=/opt/personal-ai/.venv/bin/python -m pai_mcp.server
 Restart=always
 RestartSec=5
+UMask=0077
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true

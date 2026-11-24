@@ -12,6 +12,15 @@ def test_token_hash_only_and_persistent_revocation(tmp_path):
     store = SQLiteStore(str(path))
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
     token = store.issue_token("client-a", "mcp", "owner", {"nodes:read"})
+    with store.connect() as db:
+        db.execute("BEGIN IMMEDIATE")
+        db.execute("UPDATE clients SET revoked=0 WHERE client_id='client-a'")
+        for sidecar in (
+            path.with_name(path.name + "-wal"),
+            path.with_name(path.name + "-shm"),
+        ):
+            if sidecar.exists():
+                assert stat.S_IMODE(sidecar.stat().st_mode) == 0o600
     assert store.verify_token(token)["client_id"] == "client-a"
     assert token.encode() not in path.read_bytes()
     reopened = SQLiteStore(str(path))

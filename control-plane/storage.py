@@ -37,9 +37,13 @@ class SQLiteStore:
         if self.path != ":memory:":
             self.path = str(Path(self.path).expanduser())
         if self.path != ":memory:":
-            Path(self.path).expanduser().parent.mkdir(
-                parents=True, exist_ok=True, mode=0o700
-            )
+            database_path = Path(self.path).expanduser()
+            database_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            # Create the database with private permissions before SQLite opens it.
+            # This avoids a brief world-readable window on first startup.
+            fd = os.open(database_path, os.O_CREAT | os.O_RDWR, 0o600)
+            os.close(fd)
+            os.chmod(database_path, 0o600)
         self._lock = threading.RLock()
         self._initialize()
 
