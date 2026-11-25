@@ -155,7 +155,6 @@ echo "MCP listener: 127.0.0.1:8765/mcp (requires an API-issued Bearer token)"
 echo "Node status: $(sudo systemctl is-active personal-ai-node.service)"
 if [ "$NEW_ADMIN" -eq 1 ]; then
   echo
-  echo "Initial admin bearer token (saved root-only at $ADMIN_TOKEN_FILE):"
-  sudo cat "$ADMIN_TOKEN_FILE"
+  echo "Initial admin bearer token saved root-only at $ADMIN_TOKEN_FILE."
   echo "Issue client credentials as pai-api with: sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 $TARGET/.venv/bin/python -m personal_ai_api.cli issue-token ..."
 fi

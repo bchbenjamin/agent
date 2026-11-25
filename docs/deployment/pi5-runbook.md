@@ -41,7 +41,7 @@ The installer:
 - Enrolls the Pi node with an API-issued node credential.
 - Does not format drives, alter the boot device, change Tailscale configuration or modify the AI Gateway.
 
-The initial admin token is stored root-only at /etc/personal-ai/admin-token and printed once on first installation. Retrieve it later with sudo cat /etc/personal-ai/admin-token. The API database is owned by pai-api and is not readable by the node-agent task identity.
+The installer reports the path of the root-only admin token at `/etc/personal-ai/admin-token`. Retrieve the token from a private administrator terminal only when needed. The API database is owned by pai-api and is not readable by the node-agent task identity.
 
 ## Services
 
