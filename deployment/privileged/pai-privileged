@@ -41,7 +41,7 @@ def user_exec(argv: list[str]) -> int:
     })
     result = subprocess.run(
         ["/usr/sbin/runuser", "--preserve-environment", "-u", TARGET_USER, "--", *argv],
-        env=env, stdin=sys.DEVNULL, check=False,
+        env=env, stdin=subprocess.DEVNULL, check=False,
     )
     return result.returncode
 

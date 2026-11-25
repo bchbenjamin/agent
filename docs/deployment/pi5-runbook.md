@@ -64,6 +64,17 @@ The Beeper endpoint is OAuth-protected; HTTP 401 without an OAuth token can indi
 
 ## Client credentials and Hermes
 
+On the Pi, `~/.hermes-pi` is the runtime home for configuration, credentials,
+pairing, integrations, memory, and sessions. The CLI launcher in `~/.local/bin`
+and the Hermes gateway user unit use that home. The application checkout,
+managed Python, and installer assets remain under `~/.hermes`.
+
+Telegram polling belongs to the Pi gateway. Keep the bot token in the
+runtime's private `.env` as `TELEGRAM_BOT_TOKEN` and allowlist the verified
+numeric owner with `TELEGRAM_ALLOWED_USERS`. The Pi uses allowlist-only
+direct messages and disables group access. Keep the Simular Box as an
+HTTPS MCP integration and leave Telegram polling disabled there.
+
 Issue separate tokens for Morphic, Hermes and every external MCP client. Run token administration as pai-api because the SQLite database is not accessible to bchbenjamin or the node-agent account. Do not reuse the AI Gateway key.
 
 Example:
