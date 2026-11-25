@@ -28,14 +28,15 @@ ACTUAL_DATA_UUID="$(findmnt -n -o UUID --target /mnt/pi_data)"
 }
 
 sudo apt-get update
-sudo apt-get install -y python3 python3-venv python3-pip curl sudo
-sudo install -d -o "$USER_NAME" -g "$GROUP_NAME" -m 0750 "$TARGET"
-sudo cp -a "$REPO_ROOT/." "$TARGET/"
-sudo rm -rf "$TARGET/.venv"
-sudo chown -R "$USER_NAME:$GROUP_NAME" "$TARGET"
-python3 -m venv "$TARGET/.venv"
-"$TARGET/.venv/bin/pip" install --upgrade pip
-"$TARGET/.venv/bin/pip" install -r "$TARGET/requirements.txt"
+sudo apt-get install -y python3 python3-venv python3-pip curl sudo git
+if [ -L "$TARGET" ] || { [ -e "$TARGET" ] && [ "$(stat -c %u "$TARGET")" != 0 ]; }; then
+  echo "Review and relocate the existing non-root-owned installation at $TARGET before deploying." >&2
+  exit 1
+fi
+sudo install -d -o root -g root -m 0755 "$TARGET"
+git -C "$REPO_ROOT" archive HEAD | sudo tar --no-same-owner -xf - -C "$TARGET"
+sudo python3 -m venv "$TARGET/.venv"
+sudo "$TARGET/.venv/bin/python" -m pip install -r "$TARGET/requirements.txt"
 
 sudo install -d -o "$USER_NAME" -g "$GROUP_NAME" -m 0700 "/home/$USER_NAME/.config/personal-ai"
 for service_user in "$API_USER" "$MCP_USER" "$NODE_AGENT_USER"; do
@@ -129,9 +130,15 @@ curl -fsS http://127.0.0.1:8000/health >/dev/null || {
 TOKEN_FILE=/var/lib/pai-agent/node-token
 if ! sudo -u "$NODE_AGENT_USER" test -s "$TOKEN_FILE"; then
   [ -n "${ENROLL_TOKEN:-}" ] || { echo "Missing PAI_NODE_ENROLLMENT_TOKEN in $API_ENV." >&2; exit 2; }
-  sudo -u "$NODE_AGENT_USER" env PAI_API_URL=http://127.0.0.1:8000 PAI_NODE_ID=pi5 \
-    PAI_NODE_TOKEN_FILE="$TOKEN_FILE" PAI_NODE_ENROLLMENT_TOKEN="$ENROLL_TOKEN" \
-    "$TARGET/.venv/bin/python" -m node_agent.cli --enroll
+  printf '%s\n' "$ENROLL_TOKEN" | (
+    cd "$TARGET"
+    sudo -u "$NODE_AGENT_USER" env PAI_API_URL=http://127.0.0.1:8000 PAI_NODE_ID=pi5 \
+      PAI_NODE_TOKEN_FILE="$TOKEN_FILE" /bin/bash -c '
+        IFS= read -r PAI_NODE_ENROLLMENT_TOKEN || exit 1
+        export PAI_NODE_ENROLLMENT_TOKEN
+        exec "$1" -m node_agent.cli --enroll
+      ' bash "$TARGET/.venv/bin/python"
+  )
 fi
 
 # Remove one-time bootstrap/enrollment secrets from the API service environment.

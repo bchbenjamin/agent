@@ -5,7 +5,7 @@ Hermes is the agent runtime and context/memory layer on the Raspberry Pi 5. It r
 ## Connections
 
 - **AI Gateway**: `https://ai.bchbenjamin.in/codex/v1` for inference only. It has no device or personal-context permissions.
-- **Personal AI MCP**: `https://mcp.hermes.bchbenjamin.in/mcp` (Streamable HTTP). Configure a dedicated API-issued `PAI_API_TOKEN` with only the scopes Hermes needs.
+- **Personal AI MCP**: `http://127.0.0.1:8765/mcp` (Streamable HTTP) for Hermes on the Pi. Configure a dedicated API-issued `PAI_API_TOKEN` with only the scopes Hermes needs.
 - **Beeper**: `http://127.0.0.1:23373/v0/mcp`, OAuth-protected local MCP.
 - **Simular Box**: `https://mcp.box.simular.ai/mcp`, authenticated remote execution sandbox.
 - **Pi desktop control**: preserve Hermes native Computer Use with native Wayland enabled. The upstream computer-use-linux stdio MCP can also be registered locally using command computer-use-linux and args ["mcp"]; review the resulting tool list to avoid duplicate overlapping controllers.

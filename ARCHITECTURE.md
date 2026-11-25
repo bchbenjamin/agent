@@ -50,4 +50,4 @@ Each managed node runs a dedicated unprivileged pai-agent daemon.
 
 The Raspberry Pi 5 hosts the Personal AI API/control plane, MCP adapter, pai-agent daemon, Hermes runtime and Beeper Desktop. Beeper's OAuth MCP endpoint remains bound to 127.0.0.1:23373. Hermes Computer Use remains local to the Pi's Wayland desktop. The 256 GB OSC SSD is data-only at /mnt/pi_data; the 64 GB microSD remains the permanent boot device.
 
-The Simular Box remains an auxiliary execution/browser environment. The Redmi Note 5 Pro is a future node.
+Hermes uses the Simular Box as an auxiliary execution and browser environment through authenticated HTTPS MCP. This connection originates from Hermes and does not require Box-to-Pi SSH. If Hermes and the control plane move off the Pi, the Pi node agent can enroll with the new control plane and continue polling it over outbound HTTPS. The Redmi Note 5 Pro is a future node.

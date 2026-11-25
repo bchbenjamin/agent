@@ -2,6 +2,8 @@
 Description=Personal AI API and Control Plane
 After=network-online.target
 Wants=network-online.target
+RequiresMountsFor=/mnt/pi_data
+ConditionPathIsMountPoint=/mnt/pi_data
 
 [Service]
 Type=simple

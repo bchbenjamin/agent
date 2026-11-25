@@ -153,16 +153,27 @@ def test_runner_uses_argv_and_blocks_sensitive_operations():
 
 
 def test_runner_uses_configured_user_helper(tmp_path, monkeypatch):
+    import subprocess
+
     helper = tmp_path / "helper"
     helper.write_text('#!/bin/sh\nshift 2\nexec "$@"\n', encoding="utf-8")
     helper.chmod(0o755)
     monkeypatch.setenv("PAI_EXECUTION_HELPER", str(helper))
     monkeypatch.setenv("PAI_NODE_AGENT_REQUIRE_USER_HELPER", "true")
+    launch = subprocess.Popen
+    commands = []
+
+    def simulate_sudo(argv, **kwargs):
+        commands.append(argv[:2])
+        return launch(argv[2:], **kwargs)
+
+    monkeypatch.setattr(subprocess, "Popen", simulate_sudo)
     runner = TaskRunner()
     assert (
         runner.run_command(["/bin/echo", "through-helper"])["stdout"].strip()
         == "through-helper"
     )
+    assert commands == [["/usr/bin/sudo", "-n"]]
 
 
 def test_runner_enforces_output_limit_without_limiting_file_writes(tmp_path):

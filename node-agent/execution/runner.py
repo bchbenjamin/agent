@@ -35,7 +35,7 @@ class TaskRunner:
 
     def _run(self, argv: list[str], timeout: int) -> dict[str, Any]:
         if self.execution_helper:
-            command = [self.execution_helper, "user-exec", "--", *argv]
+            command = ["/usr/bin/sudo", "-n", self.execution_helper, "user-exec", "--", *argv]
         elif self.require_user_helper:
             return {
                 "error": "Required user execution helper is not configured",

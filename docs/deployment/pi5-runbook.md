@@ -31,6 +31,7 @@ Run from the repository checkout as bchbenjamin, not root:
 
 The installer:
 - Installs Python dependencies in /opt/personal-ai/.venv.
+- Deploys files from the checked-out Git commit into a root-owned directory readable by the service accounts.
 - Creates dedicated pai-api, pai-mcp and pai-agent system accounts; the SQLite database is private to pai-api.
 - Stores the initial admin token root-only at /etc/personal-ai/admin-token.
 - Creates a dedicated pai-agent system account; its node token lives at /var/lib/pai-agent/node-token (mode 0600).

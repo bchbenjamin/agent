@@ -31,7 +31,7 @@ mcp_servers:
     timeout: 120
     connect_timeout: 15
   personal_ai:
-    url: https://mcp.hermes.bchbenjamin.in/mcp
+    url: http://127.0.0.1:8765/mcp
     headers:
       Authorization: "Bearer ${PAI_API_TOKEN}"
     trust: untrusted
