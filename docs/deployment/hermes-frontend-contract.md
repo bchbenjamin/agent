@@ -27,7 +27,7 @@ Use `assistant.delta` for incremental text. Terminal events include `assistant.c
 
 For explicit cancellation, `POST /v1/runs` persists the returned run ID and `POST /v1/runs/{id}/stop` requests interruption. Poll `GET /v1/runs/{id}` for the terminal status. An early stop on a native session stream may return 409. Do not interpret browser disconnect as proof of cancellation.
 
-An `approval.request` carries run/request IDs, a redacted prompt, and allowed choices. Render only those choices. POST `{"request_id":"request_disposable","choice":"once"}` to `/v1/runs/{id}/approval` only after an explicit owner decision. Show the result from Hermes. Personal AI task approval is a different, private control-plane operation.
+An `approval.request` carries a run ID, a redacted prompt, and allowed choices. Render only those choices. For a pending native run, `GET /v1/runs/{id}` returns the current `execution_generation` and a `pending_controls` entry with `kind: "approval"` and `prompt_id`. POST exactly `{"request_id":"prompt_disposable","execution_generation":1,"choice":"deny"}` to `/v1/runs/{id}/approval` only after an explicit owner decision. Use the current generation and prompt ID rather than the example values. Show the result from Hermes. Personal AI task approval is a different, private control-plane operation.
 
 Use 401 for authentication failure, 404 for an unavailable route, and the relay's 503 response to distinguish an offline/busy connector from an unconfigured deployment. Do not automatically resubmit a mutation after an ambiguous response or truncated stream. Preserve user input for explicit recovery.
 
