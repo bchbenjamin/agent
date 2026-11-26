@@ -1,28 +1,88 @@
-# Install only after confirming public HTTPS reachability and DNS.
-# Backends remain loopback-only. All credentials are enforced by the upstream.
-api.hermes.bchbenjamin.in {
-    @agent path /v1/chat/completions /v1/responses /v1/models /v1/capabilities /v1/runs /v1/runs/* /api/sessions /api/sessions/*
-    @control path /v1/auth/me /v1/nodes /v1/nodes/* /v1/tasks /v1/tasks/* /v1/context/query
-    handle @agent {
-        reverse_proxy 127.0.0.1:8642 {
-            flush_interval -1
-        }
-    }
-    handle @control {
-        reverse_proxy 127.0.0.1:8000
-    }
-    handle {
-        respond 404
-    }
+# HTTPS terminates at the authenticated application ingress relay.
+# Set each tunnel ingress rule's httpHostHeader to its public hostname.
+{
+	admin off
 }
-mcp.hermes.bchbenjamin.in {
-    handle /mcp {
-        reverse_proxy 127.0.0.1:8765 {
-            header_up Host 127.0.0.1:8765
-            flush_interval -1
-        }
-    }
-    handle {
-        respond 404
-    }
+
+(bearer_required) {
+	@missing_bearer not header_regexp Authorization ^Bearer[[:space:]]+[^[:space:]]+$
+	respond @missing_bearer 401
+}
+
+http://api.hermes.bchbenjamin.in:18080 {
+	bind 127.0.0.1
+
+	@hermes_read {
+		method GET
+		path_regexp ^(/v1/(models|capabilities|runs/[^/]+(/events)?)|/api/sessions(/[^/]+(/messages)?)?)$
+	}
+	@hermes_write {
+		method POST
+		path_regexp ^(/v1/(chat/completions|responses|runs(/[^/]+/(approval|stop|steer))?)|/api/sessions(/[^/]+/chat(/stream)?)?)$
+	}
+	@control_read {
+		method GET
+		path_regexp ^/v1/(auth/me|nodes(/[A-Za-z0-9._-]+)?|tasks/task_[0-9a-f]{24})$
+		not path /v1/nodes/register
+	}
+	@control_write {
+		method POST
+		path /v1/tasks /v1/context/query
+	}
+	@node_poll {
+		method POST
+		path_regexp ^/v1/nodes/[A-Za-z0-9._-]+/(heartbeat|tasks/next|tasks/task_[0-9a-f]{24}/result)$
+	}
+
+	handle @hermes_read {
+		import bearer_required
+		reverse_proxy 127.0.0.1:8642 {
+			flush_interval -1
+		}
+	}
+	handle @hermes_write {
+		import bearer_required
+		reverse_proxy 127.0.0.1:8642 {
+			flush_interval -1
+		}
+	}
+	handle @control_read {
+		import bearer_required
+		reverse_proxy 127.0.0.1:8000
+	}
+	handle @control_write {
+		import bearer_required
+		reverse_proxy 127.0.0.1:8000
+	}
+	handle @node_poll {
+		import bearer_required
+		reverse_proxy 127.0.0.1:8000
+	}
+	handle {
+		respond 404
+	}
+}
+
+http://mcp.hermes.bchbenjamin.in:18080 {
+	bind 127.0.0.1
+
+	@mcp {
+		path /mcp
+		method GET POST DELETE
+	}
+	handle @mcp {
+		import bearer_required
+		reverse_proxy 127.0.0.1:8765 {
+			header_up Host 127.0.0.1:8765
+			flush_interval -1
+		}
+	}
+	handle {
+		respond 404
+	}
+}
+
+http://:18080 {
+	bind 127.0.0.1
+	respond 404
 }

@@ -1,0 +1,13 @@
+[Unit]
+Description=Personal AI loopback reverse proxy
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+ExecStart=%h/.local/lib/personal-ai/ingress/caddy run --config %h/.config/personal-ai/ingress/Caddyfile --adapter caddyfile
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=Personal AI Cloudflare Tunnel connector
+After=personal-ai-ingress-origin.service
+Requires=personal-ai-ingress-origin.service
+ConditionPathExists=%h/.config/personal-ai/ingress/cloudflared.token
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+ExecStart=%h/.local/lib/personal-ai/ingress/cloudflared tunnel --no-autoupdate --protocol http2 --metrics 127.0.0.1:18241 run --token-file %h/.config/personal-ai/ingress/cloudflared.token
+Restart=on-failure
+RestartSec=15
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
