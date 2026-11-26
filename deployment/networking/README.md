@@ -14,7 +14,7 @@ The unused Caddy virtual-host names are internal labels passed by the connector.
 
 ## Pi installation
 
-Retrieve only `connector.py`, `ingress_policy.py`, `requirements.txt` and `gateway-ingress.service` from the Gateway repository's `deployment/ingress/` at commit `e3cb02e0d8ab8c6983fb684dee567f77310ba126`. Use authenticated GitHub file access if raw access is unavailable. Install the three runtime files in `~/.local/lib/gateway-ingress/`, and install their dependencies in the dedicated `venv` under that directory. No Gateway application installation is needed.
+Retrieve only `connector.py`, `ingress_policy.py`, `requirements.txt` and `gateway-ingress.service` from the Gateway repository's `deployment/ingress/` at commit `c4b48760227f6056eb7c3a6bed9ea488f2ed548f`. Use authenticated GitHub file access if raw access is unavailable. Install the three runtime files in `~/.local/lib/gateway-ingress/`, and install their dependencies in the dedicated `venv` under that directory. No Gateway application installation is needed.
 
 Install the upstream unit under `~/.config/systemd/user/` and `gateway-ingress-pi.conf` as a drop-in in `gateway-ingress.service.d/`. The drop-in orders the connector after the local Caddy service and skips startup without its credential. The upstream unit sets `INGRESS_NODE=pi`, `INGRESS_GATEWAY=wss://ai.bchbenjamin.in`, and `INGRESS_TOKEN_FILE=%h/.config/personal-ai/ingress/render.token`. Use the existing Render-matched Pi token with mode 0600. Keep the connector and origin services enabled in the lingering user manager.
 

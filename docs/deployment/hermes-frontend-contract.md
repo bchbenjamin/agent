@@ -9,7 +9,7 @@ With the public Hermes base `https://ai.bchbenjamin.in/_ingress/http/api/v1`, ap
 - `GET /api/sessions?source=telegram&limit=25&offset=0` lists existing Telegram conversations. Session metadata includes stable ID, source, title, timestamps, and message and tool counts.
 - `GET /api/sessions/{id}/messages?limit=40&offset=0&order=latest` returns the resolved session ID and pagination. Messages carry the role and content, and tool records add tool name, call ID, arguments or result. Preserve call IDs when rendering related records.
 - `POST /api/sessions` with `{"title":"New web conversation"}` creates an isolated web session. Send web writes only to owner-mapped web sessions. Display Telegram history read-only. The bare bearer can read both sources, so this policy belongs in the web server's authorization and session mapping.
-- `POST /api/sessions/{id}/chat/stream` takes `{"message":"A user request"}`. Keep the explicit session ID, and use the effective ID returned by Hermes. For Chat Completions set `X-Hermes-Session-Id`. The pinned relay does not carry `X-Hermes-Session-Key`. For Responses chaining use the previous response ID as supported by Hermes.
+- `POST /api/sessions/{id}/chat/stream` takes `{"message":"A user request"}`. Keep the explicit session ID, and use the effective ID returned by Hermes. For Chat Completions set `X-Hermes-Session-Id`. Gateway commit `c4b4876` forwards `X-Hermes-Session-Key` in both directions; refresh the installed connector policy to that revision before testing continuity. For Responses chaining use the previous response ID as supported by Hermes.
 
 ## Events and run control
 
