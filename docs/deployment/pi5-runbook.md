@@ -75,7 +75,7 @@ numeric owner with `TELEGRAM_ALLOWED_USERS`. The Pi uses allowlist-only
 direct messages and disables group access. Keep the Simular Box as an
 HTTPS MCP integration and leave Telegram polling disabled there.
 
-Issue separate tokens for Morphic, Hermes and every external MCP client. Run token administration as pai-api because the SQLite database is not accessible to bchbenjamin or the node-agent account. Do not reuse the AI Gateway key.
+Issue separate tokens for Hermes and every external MCP client. Morphic chat uses the separate Hermes downstream API key; only a future direct Personal AI operations panel needs a scoped Personal AI client token. Run token administration as pai-api because the SQLite database is not accessible to bchbenjamin or the node-agent account. Do not reuse the AI Gateway key.
 
 Example:
 

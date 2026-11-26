@@ -1,15 +1,8 @@
 {
-  "apiBaseUrl": "https://api.hermes.bchbenjamin.in",
-  "clientType": "morphic-frontend",
-  "authMethod": "bearer_token",
-  "tokenEnvVar": "PAI_API_TOKEN",
-  "serverSideOnly": true,
-  "allowedScopes": [
-    "context:read",
-    "nodes:read",
-    "files:read",
-    "terminal:execute",
-    "services:manage",
-    "tasks:approve"
-  ]
+  "HERMES_CHAT_ENABLED": "true",
+  "HERMES_OWNER_USER_ID": "replace-with-authenticated-owner-id",
+  "HERMES_WEB_ORIGIN": "https://hermes.bchbenjamin.in",
+  "HERMES_API_BASE_URL": "http://127.0.0.1:8642/v1",
+  "HERMES_API_KEY": "replace-with-private-hermes-downstream-key",
+  "HERMES_API_MODEL": "hermes"
 }
