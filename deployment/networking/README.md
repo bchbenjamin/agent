@@ -1,0 +1,9 @@
+# Hermes HTTPS ingress
+
+`Caddyfile.hermes` is an optional reverse-proxy template, not an installed service. It assumes publicly reachable HTTPS, valid certificates and DNS. Do not use it to expose loopback services directly or open router ports without owner approval. If behind CGNAT use an authenticated outbound relay with the same explicit routing policy; Tailscale Serve alone is private and does not make Vercel a tailnet member. Do not use a public unauthenticated forwarding service.
+
+The API hostname splits native Hermes session/inference routes from Personal AI control-plane routes; the MCP hostname exposes only /mcp. No upstream API keys are injected by the proxy. Each client supplies its own scoped bearer token. Keep administrative enrollment, bootstrap, documentation and health routes private. Check native Hermes auth on every exposed path before enabling ingress. Verify MCP Host/Origin behavior against the installed SDK; do not disable its DNS rebinding protection globally. The template rewrites the MCP upstream Host to loopback but retains Origin, which may require a narrowly scoped explicit allowlist for browser clients.
+
+Before activation validate the Caddyfile with the installed Caddy version. Test from outside the Pi: missing/wrong credentials rejected, valid scoped credentials accepted, cross-service credentials rejected, SSE framing intact, session history accessible only to the owner, and unknown routes return 404. No logging of Authorization, transcripts or query strings. Preserve all existing services and routes.
+
+Morphic uses HERMES_API_BASE_URL=https://api.hermes.bchbenjamin.in/v1 and a separate downstream Hermes key. Never use a node credential or admin token. MCP clients use https://mcp.hermes.bchbenjamin.in/mcp with Personal AI issued scoped tokens.
