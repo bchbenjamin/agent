@@ -1,56 +1,29 @@
-# Hermes HTTPS ingress
+# Hermes public ingress on the existing AI Gateway
 
-The Pi runs a loopback-only Caddy origin on `127.0.0.1:18080`. Public TLS terminates at an edge relay. The API virtual host routes native Hermes requests to port 8642 and Personal AI control-plane requests to port 8000. The MCP host routes only `/mcp` to port 8765. Beeper is outside the routing table.
+The Pi runs the Gateway's outbound WebSocket connector. The Gateway relays only fixed HTTP routes. Caddy binds to loopback at `127.0.0.1:18080` and routes approved methods and paths to Hermes (8642), Personal AI (8000), and the separate MCP adapter (8765). The inference gateway does not own a Personal AI credential or an execution tool. Beeper has no public route.
 
-Caddy requires a bearer header before contacting a backend. Hermes validates its downstream key, and the Personal AI API and MCP adapter validate their own scoped credentials. The public method/path allowlist excludes node enrollment, node revocation, task approval, task approval listing, context indexing, health and documentation routes, and destructive session operations. Node heartbeat, polling, and result submission still require a node credential. Caddy rewrites only the MCP upstream Host to loopback and preserves Origin so the SDK can enforce its existing DNS rebinding protection.
+| Purpose | URL |
+| --- | --- |
+| Pi connector | `wss://ai.bchbenjamin.in/_ingress/connect/pi` |
+| Hermes native inference base | `https://ai.bchbenjamin.in/_ingress/http/api/v1` |
+| Hermes native session list | `https://ai.bchbenjamin.in/_ingress/http/api/api/sessions` |
+| Personal AI MCP | `https://ai.bchbenjamin.in/_ingress/http/mcp/mcp` |
+| Web frontend | `https://hermes.bchbenjamin.in` |
 
-## Cloudflare account setup
+The unused Caddy virtual-host names are internal labels passed by the connector. They do not require DNS records. Do not add custom domains or open router ports. The previous [Cloudflare files and design](cloudflare-alternative.md) remain available for reference. Keep their connector disabled.
 
-1. Create a dedicated named Cloudflare Tunnel using the existing zone. Configure these two public origin hostnames. Both use an HTTP service at `http://127.0.0.1:18080`.
+## Pi installation
 
-   | First-level tunnel hostname | HTTP Host Header sent to Caddy |
-   | --- | --- |
-   | `hermes-api-origin.bchbenjamin.in` | `api.hermes.bchbenjamin.in` |
-   | `hermes-mcp-origin.bchbenjamin.in` | `mcp.hermes.bchbenjamin.in` |
+Retrieve only `connector.py`, `ingress_policy.py`, `requirements.txt` and `gateway-ingress.service` from the Gateway repository's `deployment/ingress/` at commit `e3cb02e0d8ab8c6983fb684dee567f77310ba126`. Use authenticated GitHub file access if raw access is unavailable. Install the three runtime files in `~/.local/lib/gateway-ingress/`, and install their dependencies in the dedicated `venv` under that directory. No Gateway application installation is needed.
 
-   The origin hostnames use Cloudflare-proxied CNAMEs to the tunnel's `<UUID>.cfargotunnel.com` target. Use the same dedicated tunnel for both. Do not add routes for the inference gateway, Beeper, or the Vercel frontend.
-2. Install the tunnel's dedicated connector token on the Pi as `~/.config/personal-ai/ingress/cloudflared.token`, mode 0600, using private input. The connector uses outbound HTTP/2 over TCP 7844 and skips startup while the token file is absent. Run this from a private Bash terminal on the Pi:
+Install the upstream unit under `~/.config/systemd/user/` and `gateway-ingress-pi.conf` as a drop-in in `gateway-ingress.service.d/`. The drop-in orders the connector after the local Caddy service and skips startup without its credential. The upstream unit sets `INGRESS_NODE=pi`, `INGRESS_GATEWAY=wss://ai.bchbenjamin.in`, and `INGRESS_TOKEN_FILE=%h/.config/personal-ai/ingress/render.token`. Use the existing Render-matched Pi token with mode 0600. Keep the connector and origin services enabled in the lingering user manager.
 
-   ```bash
-   umask 077
-   read -rsp 'Dedicated Cloudflare Tunnel token: ' tunnel_token
-   printf '\n'
-   if [ -n "$tunnel_token" ]; then
-       printf '%s\n' "$tunnel_token" > "$HOME/.config/personal-ai/ingress/cloudflared.token"
-       chmod 0600 "$HOME/.config/personal-ai/ingress/cloudflared.token"
-       unset tunnel_token
-       systemctl --user start personal-ai-ingress-tunnel.service
-   fi
-   ```
-3. Deploy the Worker defined in `wrangler.toml` from this directory with the owner's authenticated Cloudflare account. The Worker Custom Domains create the two nested DNS records and TLS certificates. Cloudflare Universal SSL for a full DNS zone only covers the apex and first-level names. Do not add CNAME records for the two nested Worker hostnames beforehand. The Worker relays the bearer, request body, SSE stream and MCP headers without following origin redirects or caching the response.
+After startup, a valid downstream Hermes credential must return 200 from the public models route. Missing credentials return 401 and private routes return 404. The serving Gateway returns `503 Ingress disabled` when its effective Pi connector token is absent or too short. A correctly enabled Gateway with no available connector returns `503 Origin unavailable or busy`. A locally active systemd process alone does not confirm a connected peer.
 
-This route uses application bearer authentication. It has no dependency on a Cloudflare Access enrollment flow. If the account cannot create the dedicated named tunnel without payment verification, leave the connector inactive and the two public records absent. Tailscale Serve is a private tailnet option. Funnel can publish a tailnet hostname, but its certificate does not cover these custom domains.
+The shared policy forwards Authorization, Content-Type, Origin, MCP session/protocol headers, query parameters, SSE data, HTTP status, and the legacy and native session ID headers. The pinned Gateway implementation omits `x-hermes-session-key`. To support that header end to end, add it to both `REQUEST_HEADERS` and `RESPONSE_HEADERS` in both identical Gateway policy files. Extend Gateway `test_stream_and_headers` to assert the request frame carries it and the relay response echoes it. Preserve the policy parity test, deploy the Gateway fix separately, then refresh the Pi policy from that commit. Use explicit `X-Hermes-Session-Id` for disposable web chat until the session-key path has been verified.
 
-## Pi services
+To stop publication without affecting local services, disable and stop only `gateway-ingress.service`. The local Caddy origin and Hermes runtime stay in place.
 
-The service templates run without root under the existing lingering user systemd manager. Their executables live at `~/.local/lib/personal-ai/ingress/caddy` and `~/.local/lib/personal-ai/ingress/cloudflared`. Install the service files under `~/.config/systemd/user/` and the Caddyfile at `~/.config/personal-ai/ingress/Caddyfile`. Validate the configuration with `caddy validate --config Caddyfile.hermes --adapter caddyfile` before starting it.
+## Frontend
 
-After publishing DNS, test from outside the Pi. Verify TLS, missing and invalid bearer rejection, scoped access, wrong-service bearer rejection, and 404 for private routes. Confirm native Hermes SSE framing and the MCP initialize, tools/list, and list_nodes flow. Keep Authorization and personal query strings out of logs.
-
-## Morphic
-
-Set `HERMES_API_BASE_URL=https://api.hermes.bchbenjamin.in/v1`, `HERMES_API_MODEL=hermes`, and the existing downstream Hermes key as sensitive server-side `HERMES_API_KEY` in the linked Morphic production project. For command-line transfer, read `API_SERVER_KEY` from the Pi's private `~/.hermes-pi/.env` with a dotenv parser and pipe it directly to `vercel env add HERMES_API_KEY production --sensitive`. Verify the linked project before running that command and keep the value out of stdout, command arguments, and shell history. Do not use the inference gateway key or a Personal AI admin or node credential.
-
-## Supplementary research
-
-Register the separate research service as a remote Streamable HTTP MCP server in the canonical Hermes configuration. Use a distinct bearer credential in the private Hermes environment and configure per-server tool selection. Preserve the native `web_search` and `web_extract` tools and expose only supplementary capabilities. The research service needs no access to the Pi filesystem, node token, or inference gateway credentials.
-
-```yaml
-mcp_servers:
-  shared_research:
-    url: https://research.example.org/mcp
-    headers:
-      Authorization: "Bearer ${RESEARCH_MCP_API_KEY}"
-    connect_timeout: 15
-    timeout: 120
-```
+Set the existing Morphic production project to `HERMES_API_BASE_URL=https://ai.bchbenjamin.in/_ingress/http/api/v1`, `HERMES_API_MODEL=hermes`, and sensitive server-side `HERMES_API_KEY` from the canonical Hermes downstream `API_SERVER_KEY`. Both the connector token and personal admin token are separate. Never expose these secrets to browser code. Use the [native backend contract](../../docs/deployment/hermes-frontend-contract.md) for history and streaming.

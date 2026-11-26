@@ -9,11 +9,11 @@ See `docs/HERMES.md` in the Morphic repository. Enable real Morphic authenticati
 - `HERMES_CHAT_ENABLED=true`
 - `HERMES_OWNER_USER_ID`: immutable authenticated owner ID
 - `HERMES_WEB_ORIGIN=https://hermes.bchbenjamin.in`
-- `HERMES_API_BASE_URL`: trusted Hermes `/v1` base URL; on the Pi this is `http://127.0.0.1:8642/v1`
+- `HERMES_API_BASE_URL`: trusted Hermes `/v1` base URL; production uses `https://ai.bchbenjamin.in/_ingress/http/api/v1`
 - `HERMES_API_KEY`: distinct Hermes downstream API key, not an inference or Personal AI token
 - `HERMES_API_MODEL=hermes`
 
-Do not expose the key to browser code. Do not configure an AI Gateway key in this dedicated frontend deployment. Disable chat sharing and optional external telemetry. The public frontend requires a reachable, authenticated HTTPS ingress to Hermes; a cloud frontend cannot reach the Pi through its own loopback. Keep the existing Pi listeners private. The API domain can route an explicitly allowed Hermes `/v1/chat/completions` path to port 8642 when authenticated ingress is available; avoid route conflicts with Personal AI API operations on port 8000.
+Do not expose the key to browser code. Do not configure an AI Gateway key in this dedicated frontend deployment. Disable chat sharing and optional external telemetry. The public frontend requires a reachable, authenticated HTTPS ingress to Hermes; a cloud frontend cannot reach the Pi through its own loopback. Keep the existing Pi listeners private. The existing Gateway relays authenticated requests to the Pi. See the [native backend contract](../../docs/deployment/hermes-frontend-contract.md) for the history prefix, SSE, and approvals.
 
 The first implementation streams text and derives stable session identity server-side per owner/conversation. Native session history browsing, approval UI, attachments, rich artifacts and production end-to-end validation are not yet complete.
 

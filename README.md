@@ -9,8 +9,8 @@ The design has two isolated layers:
 1. **AI Gateway — https://ai.bchbenjamin.in**: model inference and provider routing only. It has no access to personal files, credentials, messages, memory, devices or node-management APIs.
 2. **Personal AI — Layer 2**:
    - https://hermes.bchbenjamin.in: Morphic chat UI.
-   - https://api.hermes.bchbenjamin.in: authenticated Personal AI API and control plane.
-   - https://mcp.hermes.bchbenjamin.in/mcp: authenticated MCP Streamable HTTP adapter.
+   - https://ai.bchbenjamin.in/_ingress/http/api: authenticated Hermes API and Personal AI control plane relay.
+   - https://ai.bchbenjamin.in/_ingress/http/mcp/mcp: authenticated MCP Streamable HTTP relay.
 
 Hermes is the agent runtime and shared context/memory layer. The Raspberry Pi 5 is the primary node. Simular Box is an auxiliary execution/browser node. Redmi remains staged for future work.
 

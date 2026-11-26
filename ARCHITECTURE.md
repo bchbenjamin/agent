@@ -19,8 +19,8 @@ Layer 1 — AI Gateway: https://ai.bchbenjamin.in
 
 Layer 2 — Personal AI:
 - https://hermes.bchbenjamin.in — Morphic chat UI.
-- https://api.hermes.bchbenjamin.in — Personal AI API and control plane.
-- https://mcp.hermes.bchbenjamin.in/mcp — authenticated MCP adapter.
+- https://ai.bchbenjamin.in/_ingress/http/api — outbound Pi connector relay for the Hermes API and Personal AI control plane.
+- https://ai.bchbenjamin.in/_ingress/http/mcp/mcp — authenticated MCP adapter relay.
 - Hermes is the agent runtime and shared context/memory layer.
 - Pi 5 is the primary node; Simular Box is auxiliary; Redmi is staged.
 
