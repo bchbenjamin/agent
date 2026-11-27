@@ -53,9 +53,11 @@ finally:
     src.close()
 os.chmod(destination, 0o600)
 PY
+echo "Verified SQLite backup: $BACKUP/pai.sqlite3"
 
 tar -czf "$BACKUP/installed-source.tar.gz" -C "$INSTALL" control_plane personal_ai_api pai_mcp
 chmod 0600 "$BACKUP/installed-source.tar.gz"
+echo "Backed up installed source: $BACKUP/installed-source.tar.gz"
 
 # Copy only reviewed source files needed by the external-brain release. The
 # installed virtual environment and all service configuration remain in place.
@@ -68,14 +70,18 @@ install -D -o root -g root -m 0644 "$REPO/pai_mcp/instructions.py" "$INSTALL/pai
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/integrations.py" "$INSTALL/pai_mcp/integrations.py"
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/hermes_sessions.py" "$INSTALL/pai_mcp/hermes_sessions.py"
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/server.py" "$INSTALL/pai_mcp/server.py"
+echo "Installed reviewed source files into $INSTALL"
 
 # Reuse authorized Box and Beeper credentials from Hermes without displaying
 # them. Preserve every unrelated line already present in the MCP environment.
-python3 - "$OWNER_HOME" "$MCP_ENV" <<'PY'
-import datetime, json, os, pwd, re, sys, tempfile
+ENV_STAGE="/run/personal-ai-mcp.env.${STAMP}"
+ENV_NEXT="/etc/personal-ai/.mcp.env.new-${STAMP}"
+trap 'rm -f "$ENV_STAGE" "$ENV_NEXT"' EXIT
+python3 - "$OWNER_HOME" "$MCP_ENV" "$ENV_STAGE" <<'PY'
+import datetime, json, os, re, sys
 from pathlib import Path
 
-home, target = map(Path, sys.argv[1:])
+home, target, staging = map(Path, sys.argv[1:])
 env_file = home / ".hermes-pi/.env"
 values = {}
 for raw in env_file.read_text().splitlines():
@@ -129,26 +135,23 @@ for key, value in updates.items():
             break
     if not found:
         lines.append(replacement)
-fd, staging = tempfile.mkstemp(prefix=".mcp.env.", dir=str(target.parent))
-try:
-    with os.fdopen(fd, "w") as output:
-        output.write("\n".join(lines) + "\n")
-        output.flush()
-        os.fsync(output.fileno())
-    os.chmod(staging, 0o640)
-    os.chown(staging, 0, pwd.getgrnam("pai-mcp").gr_gid)
-    os.replace(staging, target)
-finally:
-    if os.path.exists(staging):
-        os.unlink(staging)
-print("Configured existing integration credentials:", ", ".join(sorted(updates)) if updates else "none; prior environment preserved")
+with staging.open("w") as output:
+    output.write("\n".join(lines) + "\n")
+    output.flush()
+    os.fsync(output.fileno())
+os.chmod(staging, 0o600)
+print("Prepared MCP environment keys:", ", ".join(sorted(updates)) if updates else "none; prior environment preserved")
 PY
+install -o root -g pai-mcp -m 0640 "$ENV_STAGE" "$ENV_NEXT"
+mv -f "$ENV_NEXT" "$MCP_ENV"
+echo "Updated protected MCP environment atomically"
 
 "$INSTALL/.venv/bin/python" -m compileall -q "$INSTALL/control_plane" "$INSTALL/personal_ai_api" "$INSTALL/pai_mcp"
 systemctl restart personal-ai-api.service
 systemctl restart personal-ai-mcp.service
 systemctl is-active --quiet personal-ai-api.service
 systemctl is-active --quiet personal-ai-mcp.service
+echo "Restarted Personal AI API and MCP; node agent was not restarted"
 
 # Issue a separate restricted external-brain credential without sending it to
 # stdout or modifying Hermes's existing Personal AI token.
