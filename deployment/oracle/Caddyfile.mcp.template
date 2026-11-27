@@ -1,0 +1,19 @@
+# REVIEW before applying. DNS must point at the VM and TLS must be available.
+# Choose 127.0.0.1:8765 for Oracle core or 127.0.0.1:18765 for the verified Pi bridge.
+mcp.hermes.bchbenjamin.in {
+    @mcp {
+        path /mcp
+        method GET POST DELETE
+    }
+    handle @mcp {
+        @missing not header_regexp Authorization ^Bearer[[:space:]]+[^[:space:]]+$
+        respond @missing 401
+        reverse_proxy 127.0.0.1:8765 {
+            header_up Host 127.0.0.1:8765
+            flush_interval -1
+        }
+    }
+    handle {
+        respond 404
+    }
+}

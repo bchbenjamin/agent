@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hermes-personal-ai",
+  "version": "0.1.0",
+  "description": "Connect the owner's private Hermes infrastructure to an external reasoning client.",
+  "repository": "https://github.com/bchbenjamin/agent",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Hermes Personal AI",
+        "shortDescription": "Shared memory and devices",
+        "longDescription": "Use authenticated Hermes MCP for shared memory, node status and scoped execution. Sensitive operations remain subject to owner approval.",
+        "category": "Productivity",
+        "capabilities": ["Interactive"],
+        "defaultPrompt": "Check Hermes MCP capabilities and list the managed nodes."
+      }
+    }
+  }
+}

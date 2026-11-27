@@ -19,7 +19,7 @@ If the 64 GB microSD card fails or must be replaced:
 
 ### 3. Clone Infrastructure Repository
 ```bash
-git clone https://github.com/awarespan/personal-ai-infrastructure.git ~/personal-ai-infrastructure
+git clone https://github.com/bchbenjamin/agent.git ~/personal-ai-infrastructure
 cd ~/personal-ai-infrastructure
 bash deployment/install/bootstrap-node.sh pi5
 ```
@@ -28,3 +28,7 @@ bash deployment/install/bootstrap-node.sh pi5
 - Restore `.env` from secure offline backup into `~/.hermes-pi/.env` (mode `0600`).
 - Restore operational state databases from `/mnt/pi_data/backups/`.
 - Run `bash nodes/pi5/verify.sh` to confirm full recovery.
+
+For a future Oracle host, use [Oracle migration](oracle-migration.md), not
+the Pi-specific installer. Use the consistent SQLite snapshot helper and
+retain encrypted off-device copies of private state and credentials.

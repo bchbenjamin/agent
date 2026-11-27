@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — external brains and Oracle portability
+
+- Expanded MCP to 13 scoped tools: shared context, Box probes, Beeper reads, native history.
+- Added separate client credentials, private ChatGPT plugin connection documentation, and core-only Pi upgrade/verification.
+- Added portable Oracle API/MCP installer and consistent SQLite migration snapshot with task-drain gate.
+- Consolidated current-state inventory, reboot checks, cutover and rollback; Redmi uses native Termux.
+- Oracle provisioning and complete external-tool federation remain pending.
+
 ## 0.2.0 — Personal AI control plane implementation
 
 - Added persistent SQLite storage for client/node credentials, node heartbeats, tasks, context documents and hash-chained audit events.

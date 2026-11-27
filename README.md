@@ -12,7 +12,7 @@ The design has two isolated layers:
    - https://ai.bchbenjamin.in/_ingress/http/api: authenticated Hermes API and Personal AI control plane relay.
    - https://ai.bchbenjamin.in/_ingress/http/mcp/mcp: authenticated MCP Streamable HTTP relay.
 
-Hermes is the agent runtime and shared context/memory layer. The Raspberry Pi 5 is the primary node. Simular Box is an auxiliary execution/browser node. Redmi remains staged for future work.
+Hermes is the agent runtime; the Personal AI API holds the shared context index and task state. Pi 5 is the current primary node; Simular Box is auxiliary execution/browser space; Redmi is planned native Termux inference only. Oracle is the future Layer 2 host.
 
 The API and MCP adapter do not route personal context to the AI Gateway. Nodes call the gateway for inference independently; the gateway cannot initiate calls into Layer 2.
 
@@ -53,6 +53,8 @@ All endpoints except /health require authentication unless they are explicitly n
 | POST | /v1/tasks/{task_id}/approve | Approve a high-impact task |
 | POST | /v1/context/index | Add a document with context:write |
 | POST | /v1/context/query | Search indexed context |
+| POST | /v1/context/remember | Save owner-confirmed shared context with client provenance |
+| GET | /v1/context/documents/{document_id} | Read a paginated indexed record |
 
 Supported task operations: exec (argv, no shell), shell (explicit approval required), service_status, and service_restart (approval required). Beeper and computer-use remain first-class local Hermes MCP integrations; the Personal AI node agent does not impersonate or replace their upstream MCP servers.
 
@@ -126,6 +128,18 @@ The script installs API, MCP and node-agent systemd services, a restricted syste
 - docs/: architecture decisions, threat model and operational runbooks.
 - tests/: unit, integration and security checks.
 
-## Current implementation status
+## Deployment and recovery — start here
 
-The API, persistent store, client/node authentication, approval queue, node polling protocol, task execution runner, audit chain and MCP adapter are implemented and locally smoke-tested. Production DNS/reverse-proxy configuration, Pi deployment, Hermes OAuth/MCP login, actual Beeper/computer-use end-to-end tests, and encrypted off-device backup verification remain deployment tasks.
+- [Current configuration, live-verification limits and reboot checks](docs/deployment/current-state.md)
+- [Pi deployment and recovery](docs/deployment/pi5-runbook.md)
+- [External-brain MCP and client setup](docs/deployment/external-brain-mcp.md)
+- [Client provisioning](deployment/clients/README.md)
+- [Oracle migration: portable core installer, backups, cutover and rollback](docs/deployment/oracle-migration.md)
+- [Native Termux Redmi inference node](nodes/redmi/README.md)
+
+The current source exposes 13 MCP tools. The owner reported running the Pi
+upgrade; authenticated production discovery, full integration acceptance and
+reboot recovery still require verification. Oracle has not been provisioned.
+The portable Oracle installer covers API/MCP core and control-plane state
+restore, not the complete native Hermes runtime or remote desktop federation.
+No private operational data, raw tokens or encryption keys belong in Git.

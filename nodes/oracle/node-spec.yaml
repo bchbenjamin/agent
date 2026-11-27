@@ -1,0 +1,18 @@
+node_id: oracle
+tier: primary_control_plane
+status: planned_not_provisioned
+os:
+  type: Debian or Ubuntu Linux
+  architecture: aarch64 preferred, x86_64 supported by core
+storage:
+  persistent_database: /var/lib/pai-api/control-plane.sqlite3
+  separate_encrypted_off_host_backup: required
+roles:
+  - personal-ai-api
+  - shared-context
+  - mcp
+  - hermes-runtime-after-verified-migration
+network:
+  public_mcp: proposed mcp.hermes.bchbenjamin.in
+  private_api: loopback plus authenticated private transport
+  inference_gateway: independent
