@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import httpx
 from typing import Any
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
@@ -38,7 +39,7 @@ async def call_readonly(name: str, tool: str, arguments: dict[str, Any], scopes:
         raise ValueError("Integration arguments exceed 8 KiB")
     try:
         async with asyncio.timeout(35):
-            async with streamablehttp_client(url, headers={"Authorization": f"Bearer {token}"}, timeout=15, sse_read_timeout=30) as (read, write, _):
+            async with streamablehttp_client(url, headers={"Authorization": f"Bearer {token}"}, timeout=15, sse_read_timeout=30, httpx_client_factory=lambda **kw: httpx.AsyncClient(**kw, trust_env=False, follow_redirects=False)) as (read, write, _):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     discovery = await session.list_tools()
