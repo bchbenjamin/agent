@@ -17,6 +17,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+from control_plane.authorization.scopes import EXTERNAL_BRAIN_FORBIDDEN_SCOPES
+
 ZERO_HASH = "0" * 64
 
 
@@ -108,6 +110,13 @@ class SQLiteStore:
     def issue_token(
         self, client_id: str, client_type: str, user: str, scopes: set[str]
     ) -> str:
+        if client_type == "external-brain":
+            forbidden = scopes & EXTERNAL_BRAIN_FORBIDDEN_SCOPES
+            if forbidden:
+                raise ValueError(
+                    "external-brain tokens cannot receive privileged scopes: "
+                    + ", ".join(sorted(forbidden))
+                )
         raw = f"pai_{client_type}_{secrets.token_urlsafe(32)}"
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -139,11 +148,18 @@ class SQLiteStore:
             ).fetchone()
         if not row:
             return None
+        scopes = set(json.loads(row["scopes_json"]))
+        if (
+            row["client_type"] == "external-brain"
+            and scopes & EXTERNAL_BRAIN_FORBIDDEN_SCOPES
+        ):
+            # Fail closed for legacy or manually altered credentials too.
+            return None
         return {
             "client_id": row["client_id"],
             "client_type": row["client_type"],
             "user": row["user_identity"],
-            "scopes": set(json.loads(row["scopes_json"])),
+            "scopes": scopes,
         }
 
     def revoke_token(self, token: str) -> bool:

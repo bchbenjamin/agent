@@ -95,6 +95,8 @@ def submit_task(
 def list_pending_approval(
     limit: int = 50, client: dict = Depends(require_scope("tasks:approve"))
 ):
+    if client["client_type"] == "external-brain":
+        raise HTTPException(403, "External-brain clients cannot approve tasks")
     return {"tasks": get_store().list_pending_approval(limit)}
 
 
@@ -117,6 +119,8 @@ def approve_task(
     request: Request,
     client: dict = Depends(require_scope("tasks:approve")),
 ):
+    if client["client_type"] == "external-brain":
+        raise HTTPException(403, "External-brain clients cannot approve tasks")
     task = get_store().get_task(task_id)
     if not task:
         raise HTTPException(404, "Task not found")

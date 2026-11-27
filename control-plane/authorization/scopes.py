@@ -11,6 +11,10 @@ SCOPE_DEPLOY_EXECUTE = "deploy:execute"
 SCOPE_NODES_ADMIN = "nodes:admin"
 SCOPE_TASKS_APPROVE = "tasks:approve"
 
+# External reasoning clients may request work, but must never administer nodes
+# or resolve the approval gate. Enforce this at token issuance and validation.
+EXTERNAL_BRAIN_FORBIDDEN_SCOPES = {SCOPE_NODES_ADMIN, SCOPE_TASKS_APPROVE}
+
 ALL_SCOPES = {
     SCOPE_CONTEXT_READ,
     SCOPE_CONTEXT_WRITE,

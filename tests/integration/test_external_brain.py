@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import pytest
 
 
 def test_external_brain_shared_memory_and_approval(tmp_path, monkeypatch):
@@ -39,3 +40,36 @@ def test_external_brain_shared_memory_and_approval(tmp_path, monkeypatch):
         assert c.post(f"/v1/tasks/{task['task_id']}/approve", headers=headers).status_code == 403
         assert c.get(f"/v1/tasks/{task['task_id']}", headers=reader_headers).status_code == 403
         assert store.verify_audit_chain()
+
+
+def test_external_brain_cannot_receive_or_use_approval_privileges(tmp_path, monkeypatch):
+    monkeypatch.setenv("PAI_DB_PATH", str(tmp_path / "external-approval.sqlite3"))
+    monkeypatch.setenv("PAI_BOOTSTRAP_TOKEN", "external-approval-admin")
+    monkeypatch.setenv("PAI_NODE_ENROLLMENT_TOKEN", "external-approval-enrollment")
+    from control_plane.storage import get_store
+    import personal_ai_api.auth.middleware as middleware
+    from personal_ai_api.server.app import app
+
+    store = get_store()
+    monkeypatch.setattr(middleware.token_manager, "store", store)
+    with pytest.raises(ValueError, match="cannot receive privileged scopes"):
+        store.issue_token("external-admin", "external-brain", "owner", {"tasks:approve"})
+    with pytest.raises(ValueError, match="cannot receive privileged scopes"):
+        store.issue_token("external-node-admin", "external-brain", "owner", {"nodes:admin"})
+
+    # Simulate a legacy/manually altered credential to verify fail-closed behavior.
+    legacy = store.issue_token(
+        "legacy-external-admin", "external-brain", "owner", {"context:read"}
+    )
+    with store.connect() as db:
+        db.execute(
+            "UPDATE tokens SET scopes_json='[\"tasks:approve\"]' WHERE token_hash=?",
+            (store.token_hash(legacy),),
+        )
+    assert store.verify_token(legacy) is None
+    with TestClient(app) as client:
+        response = client.get(
+            "/v1/tasks/pending-approval",
+            headers={"Authorization": f"Bearer {legacy}"},
+        )
+        assert response.status_code == 401
