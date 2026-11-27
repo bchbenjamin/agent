@@ -40,3 +40,21 @@ administrative operation; do not run it through a non-interactive shell that
 cannot request the sudo password.
 
 Test with a fresh restricted external-brain credential, initially over loopback, then the supported private or public transport: initialize and list tools, client identity, node status, queue hostname and poll the existing task until completed, query a benign indexed document, explicitly approve a synthetic memory record, read it from the separate Hermes client, restart MCP and read again. Verify a read-only client cannot write and an external-brain client cannot self-approve or access a task owned by another client. Test optional integrations using invented search text, not real chat content. Verify Gateway inference is not called during any of these operations. Do not claim a client connection or a live device test until actually observed.
+
+### Recovering a partially completed upgrade
+
+If the optional credential-preparation phase prevents activation, run the upgrade from the synchronized checkout in an interactive Pi terminal:
+
+```bash
+sudo bash deployment/install/upgrade-external-brain-mcp.sh --core-only
+```
+
+This preserves the existing MCP environment, backs up both the installed source directories and their import symlinks, activates the API and MCP, issues the restricted credential, and checks actual MCP discovery and client identity. It does not configure missing Box, Beeper or Hermes history credentials. The installer reports the failed phase if it stops. It does not claim that all integrations work merely because their tool names are discoverable.
+
+If a restricted token file has already been issued, do not rerun the installer blindly. Verify the live service with the existing credential (as the owner account):
+
+```bash
+/opt/personal-ai/.venv/bin/python deployment/install/verify-external-brain-mcp.py ~/.config/personal-ai/external-brain/claude.token
+```
+
+Do not use shell tracing (`bash -x`) on credential-handling scripts. Report the failing phase and exit status, not secrets or raw environment files. Configure and test optional integrations separately after the baseline succeeds.

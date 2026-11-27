@@ -2,6 +2,17 @@
 set -Eeuo pipefail
 umask 077
 
+CORE_ONLY=false
+case "${1:-}" in
+  "") ;;
+  --core-only) CORE_ONLY=true ;;
+  *) echo "Usage: $0 [--core-only]" >&2; exit 2 ;;
+esac
+[[ $# -le 1 ]] || { echo "Usage: $0 [--core-only]" >&2; exit 2; }
+
+PHASE=preflight
+trap 'rc=$?; printf "Upgrade failed: phase=%s line=%s exit=%s\n" "$PHASE" "$LINENO" "$rc" >&2; exit "$rc"' ERR
+
 # In-place upgrade only. This does not run first-install provisioning and does
 # not replace the existing service units, virtual environment, DB, or API keys.
 if [[ ${EUID} -ne 0 ]]; then
@@ -37,6 +48,7 @@ if [[ -e "$TOKEN_FILE" ]]; then
   exit 2
 fi
 
+PHASE=backup
 install -d -o root -g root -m 0700 "$BACKUP"
 python3 - "$DB" "$BACKUP/pai.sqlite3" <<'PY'
 import os, sqlite3, sys
@@ -55,12 +67,16 @@ os.chmod(destination, 0o600)
 PY
 echo "Verified SQLite backup: $BACKUP/pai.sqlite3"
 
-tar -czf "$BACKUP/installed-source.tar.gz" -C "$INSTALL" control_plane personal_ai_api pai_mcp
+# These import aliases are symlinks in git archive installations.
+# Include the actual directories as well, so the backup contains source bytes.
+tar -czf "$BACKUP/installed-source.tar.gz" -C "$INSTALL" control-plane personal-ai-api control_plane personal_ai_api pai_mcp
+install -o root -g root -m 0600 "$MCP_ENV" "$BACKUP/mcp.env"
 chmod 0600 "$BACKUP/installed-source.tar.gz"
 echo "Backed up installed source: $BACKUP/installed-source.tar.gz"
 
 # Copy only reviewed source files needed by the external-brain release. The
 # installed virtual environment and all service configuration remain in place.
+PHASE=source-install
 install -D -o root -g root -m 0644 "$REPO/control-plane/authorization/scopes.py" "$INSTALL/control_plane/authorization/scopes.py"
 install -D -o root -g root -m 0644 "$REPO/control-plane/storage.py" "$INSTALL/control_plane/storage.py"
 install -D -o root -g root -m 0644 "$REPO/personal-ai-api/routes/context.py" "$INSTALL/personal_ai_api/routes/context.py"
@@ -74,6 +90,10 @@ echo "Installed reviewed source files into $INSTALL"
 
 # Reuse authorized Box and Beeper credentials from Hermes without displaying
 # them. Preserve every unrelated line already present in the MCP environment.
+PHASE=environment
+if [[ "$CORE_ONLY" == true ]]; then
+  echo "Core-only mode: preserving the MCP environment unchanged; optional integrations must be configured separately."
+else
 ENV_STAGE="/run/personal-ai-mcp.env.${STAMP}"
 ENV_NEXT="/etc/personal-ai/.mcp.env.new-${STAMP}"
 trap 'rm -f "$ENV_STAGE" "$ENV_NEXT"' EXIT
@@ -145,9 +165,18 @@ PY
 install -o root -g pai-mcp -m 0640 "$ENV_STAGE" "$ENV_NEXT"
 mv -f "$ENV_NEXT" "$MCP_ENV"
 echo "Updated protected MCP environment atomically"
+fi
 
+PHASE=compile
 "$INSTALL/.venv/bin/python" -m compileall -q "$INSTALL/control_plane" "$INSTALL/personal_ai_api" "$INSTALL/pai_mcp"
+PHASE=api-restart
 systemctl restart personal-ai-api.service
+for attempt in {1..20}; do
+  if curl --noproxy "*" -fsS --max-time 2 http://127.0.0.1:8000/health >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+curl --noproxy "*" -fsS --max-time 2 http://127.0.0.1:8000/health >/dev/null
+PHASE=mcp-restart
 systemctl restart personal-ai-mcp.service
 systemctl is-active --quiet personal-ai-api.service
 systemctl is-active --quiet personal-ai-mcp.service
@@ -155,6 +184,7 @@ echo "Restarted Personal AI API and MCP; node agent was not restarted"
 
 # Issue a separate restricted external-brain credential without sending it to
 # stdout or modifying Hermes's existing Personal AI token.
+PHASE=credential-issuance
 install -d -o "$OWNER" -g "$OWNER" -m 0700 "$TOKEN_DIR"
 CLIENT_ID="claude-external-${STAMP}"
 TOKEN="$(runuser -u pai-api -- env PAI_DB_PATH="$DB" PYTHONPATH="$INSTALL" \
@@ -168,7 +198,9 @@ chown "$OWNER:$OWNER" "$TOKEN_FILE"
 chmod 0600 "$TOKEN_FILE"
 unset TOKEN
 
-echo "External-brain MCP upgrade installed."
+PHASE=mcp-verification
+runuser -u "$OWNER" -- "$INSTALL/.venv/bin/python" "$REPO/deployment/install/verify-external-brain-mcp.py" "$TOKEN_FILE"
+echo "External-brain MCP upgrade installed and local protocol verified."
 echo "Database and source backups: $BACKUP"
 echo "Restricted Claude token file: $TOKEN_FILE (value not displayed)"
 echo "Services: personal-ai-api=$(systemctl is-active personal-ai-api.service), personal-ai-mcp=$(systemctl is-active personal-ai-mcp.service)"

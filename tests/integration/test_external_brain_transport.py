@@ -1,5 +1,7 @@
 """Real MCP Streamable HTTP round trip, with temporary DB and isolated services."""
 import asyncio
+import importlib.util
+from pathlib import Path
 import os
 import socket
 import subprocess
@@ -84,6 +86,12 @@ def test_external_brain_real_transport(tmp_path):
         with service(["-m", "pai_mcp.server"], env, mcp_port):
             assert httpx.post(url, json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, timeout=5, trust_env=False).status_code == 401
             document_id = asyncio.run(session_roundtrip(writer, write=True))
+            path = Path(__file__).resolve().parents[2] / "deployment/install/verify-external-brain-mcp.py"
+            spec = importlib.util.spec_from_file_location("verify_external_brain", path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            asyncio.run(module.verify(writer, url))
+
         # New MCP process, same private data store.
         with service(["-m", "pai_mcp.server"], env, mcp_port):
             asyncio.run(session_roundtrip(reader, document_id=document_id))
