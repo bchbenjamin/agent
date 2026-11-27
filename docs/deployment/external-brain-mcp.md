@@ -8,7 +8,7 @@ This is a direct tool interface, not an inference proxy. ChatGPT, Claude, Gemini
 - Existing Render relay: `https://ai.bchbenjamin.in/_ingress/http/mcp/mcp`. This depends on Render's **transport**, not on its inference providers; it is not a solution to a Render outage or edge rejection.
 - For private desktop/CLI clients, use a separately authenticated Tailscale/SSH transport to the loopback listener. Do not expose it anonymously.
 - Claude remote custom connectors support a fixed Authorization header. For ChatGPT, use the supported OAuth client flow or Secure MCP Tunnel with appropriate authentication; do not put a bearer in a URL, turn off authentication or assume account eligibility. OAuth is not implemented by this adapter. Gemini custom MCP availability depends on the account and supported surface.
-- Issue a distinct `external-brain` token per client. Do not use the bootstrap admin token. Start with `context:read,nodes:read,terminal:execute`; add `context:write`, `box:read` and `beeper:read` only as explicitly desired. Never grant `tasks:approve` or `nodes:admin` to an external brain.
+- Issue a distinct `external-brain` token per client. Do not use the bootstrap admin token. Start with `context:read,nodes:read,terminal:execute`; add `context:write`, `box:read`, `box:execute`, `beeper:read` and `sessions:read` only as explicitly desired. Never grant `tasks:approve` or `nodes:admin` to an external brain. `box:execute` exposes only fixed, read-only health probes; it does not proxy arbitrary commands.
 - Example on the Pi (run locally, protect the result):
   `sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id claude-external --client-type external-brain --scopes context:read,nodes:read,terminal:execute,context:write`
 - Revocation: use the existing `revoke-client` command. Keep client credentials in the client credential store, never chat or Git.
@@ -21,7 +21,7 @@ Use `query_context`, then `read_context_document` with pagination, then `remembe
 
 Hermes itself must consult its personal_ai MCP context tools at task start and after substantial work. Install the supplied instruction skill or add its guidance to the existing owner-controlled instructions; do not replace Hermes's own memory or history.
 
-Optional direct read integrations: set `PAI_BOX_MCP_TOKEN` and/or `PAI_BEEPER_MCP_TOKEN` locally in the existing protected `/etc/personal-ai/mcp.env` using dedicated authorized credentials. Beeper supports a manually issued access token; preserve Hermes's existing OAuth configuration. `list_integrations` and `read_integration` use fixed upstream destinations and explicit read-only tool allowlists. They are disabled by default without credentials and enforce separate client scopes. Full Box execution, Beeper sends, GUI control, native Hermes history access and richer permission/approval mediation are subsequent work. Do not pretend that these tools already expose all Hermes capabilities.
+Optional integrations: set `PAI_BOX_MCP_TOKEN`, `PAI_BEEPER_MCP_TOKEN`, and `PAI_HERMES_API_KEY` locally in the existing protected `/etc/personal-ai/mcp.env` using the existing authorized credentials. Beeper supports a manually issued access token; preserve Hermes's OAuth configuration. `list_integrations` and `read_integration` use fixed upstream destinations and explicit read-only allowlists. `sessions:read` enables native paginated Hermes history reads through the loopback API; reasoning fields are omitted, and messages are not modified. Telegram content is private and readable only for clients explicitly granted this scope. `box:execute` exposes only fixed read-only health commands (`hostname`, `uptime`, `uname -m`, `free -m`). Arbitrary Box shell, file writes, desktop input, Beeper messaging and session continuation remain outside the bridge pending owner-mediated approval design.
 
 ## Upgrade and acceptance
 
@@ -32,7 +32,7 @@ For the reviewed in-place upgrade on the canonical Pi checkout, run
 root in an interactive terminal. It verifies the SSD mount and current services,
 creates a SQLite online backup and installed-source archive under
 `/mnt/pi_data/personal-ai-upgrade-*`, installs only the reviewed Python files,
-reuses existing Box/Beeper credentials without printing them, restarts the API
+reuses existing Box/Beeper credentials and the native Hermes API key without printing them, restarts the API
 and MCP services (not the node agent), and writes a separate restricted Claude
 credential to `~/.config/personal-ai/external-brain/claude.token` with mode
 0600. It refuses to overwrite an existing file at that path. This is an

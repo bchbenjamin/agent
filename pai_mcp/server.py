@@ -13,6 +13,9 @@ from mcp.server.fastmcp import FastMCP
 from starlette.middleware.base import BaseHTTPMiddleware
 from pai_mcp.instructions import BRAIN_INSTRUCTIONS
 from pai_mcp.integrations import available_integrations, call_readonly
+from pai_mcp.integrations import call_box_probe
+from pai_mcp.hermes_sessions import list_native_conversations as _list_native_conversations
+from pai_mcp.hermes_sessions import read_native_conversation as _read_native_conversation
 import asyncio
 from mcp.types import ToolAnnotations
 from urllib.parse import quote
@@ -134,6 +137,39 @@ async def read_integration(integration: str, tool: str, arguments: dict[str, Any
     Use list_integrations first. Do not use this tool to send messages or execute commands."""
     identity = await asyncio.to_thread(client_capabilities)
     return await call_readonly(integration, tool, arguments, set(identity["scopes"]))
+
+
+@server.tool(annotations=ToolAnnotations(readOnlyHint=True))
+async def box_health_probe(command: str) -> dict[str, Any]:
+    """Run a fixed, non-mutating health command on the existing hermes Box.
+
+    Requires box:execute. Arbitrary shell and file mutation are intentionally
+    not exposed; sensitive operations need an independent owner approval path.
+    """
+    identity = await asyncio.to_thread(client_capabilities)
+    return await call_box_probe(command, set(identity["scopes"]))
+
+
+@server.tool(annotations=ToolAnnotations(readOnlyHint=True))
+def list_native_conversations(offset: int = 0, limit: int = 20) -> dict[str, Any]:
+    """List native Hermes session metadata, including platform and Telegram sessions.
+
+    Requires the separately granted sessions:read scope. Titles and message
+    content are private data and are returned only to explicitly scoped clients.
+    """
+    identity = client_capabilities()
+    if "sessions:read" not in set(identity["scopes"]):
+        raise PermissionError("Native session history scope required")
+    return _list_native_conversations(offset, limit)
+
+
+@server.tool(annotations=ToolAnnotations(readOnlyHint=True))
+def read_native_conversation(session_id: str, offset: int = 0, limit: int = 20) -> dict[str, Any]:
+    """Read a bounded page of native conversation messages without modifying the session."""
+    identity = client_capabilities()
+    if "sessions:read" not in set(identity["scopes"]):
+        raise PermissionError("Native session history scope required")
+    return _read_native_conversation(session_id, offset, limit)
 
 
 class PersonalAIBearerMiddleware(BaseHTTPMiddleware):

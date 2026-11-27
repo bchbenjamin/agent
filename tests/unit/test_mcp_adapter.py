@@ -48,4 +48,7 @@ def test_official_mcp_server_registers_expected_tools():
         "remember_context",
         "list_integrations",
         "read_integration",
+        "box_health_probe",
+        "list_native_conversations",
+        "read_native_conversation",
     }

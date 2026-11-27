@@ -66,6 +66,7 @@ install -D -o root -g root -m 0644 "$REPO/personal-ai-api/routes/tasks.py" "$INS
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/adapter.py" "$INSTALL/pai_mcp/adapter.py"
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/instructions.py" "$INSTALL/pai_mcp/instructions.py"
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/integrations.py" "$INSTALL/pai_mcp/integrations.py"
+install -D -o root -g root -m 0644 "$REPO/pai_mcp/hermes_sessions.py" "$INSTALL/pai_mcp/hermes_sessions.py"
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/server.py" "$INSTALL/pai_mcp/server.py"
 
 # Reuse authorized Box and Beeper credentials from Hermes without displaying
@@ -90,6 +91,9 @@ updates = {}
 box = values.get("MCP_BOX_API_KEY", "")
 if box:
     updates["PAI_BOX_MCP_TOKEN"] = box
+hermes_key = values.get("API_SERVER_KEY", "")
+if hermes_key:
+    updates["PAI_HERMES_API_KEY"] = hermes_key
 
 beeper_file = home / ".hermes-pi/mcp-tokens/beeper.json"
 if beeper_file.is_file():
@@ -153,7 +157,7 @@ CLIENT_ID="claude-external-${STAMP}"
 TOKEN="$(runuser -u pai-api -- env PAI_DB_PATH="$DB" PYTHONPATH="$INSTALL" \
   "$INSTALL/.venv/bin/python" -m personal_ai_api.cli issue-token \
   --client-id "$CLIENT_ID" --client-type external-brain \
-  --scopes context:read,context:write,nodes:read,terminal:execute,box:read,beeper:read)"
+  --scopes context:read,context:write,nodes:read,terminal:execute,box:read,box:execute,beeper:read,sessions:read)"
 [[ "$TOKEN" == pai_external-brain_* ]] || { echo "Token issuance failed; see CLI status." >&2; exit 4; }
 umask 077
 printf '%s\n' "$TOKEN" > "$TOKEN_FILE"

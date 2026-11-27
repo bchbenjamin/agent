@@ -10,6 +10,8 @@ SCOPE_SERVICES_MANAGE = "services:manage"
 SCOPE_DEPLOY_EXECUTE = "deploy:execute"
 SCOPE_NODES_ADMIN = "nodes:admin"
 SCOPE_TASKS_APPROVE = "tasks:approve"
+SCOPE_SESSIONS_READ = "sessions:read"
+SCOPE_BOX_EXECUTE = "box:execute"
 
 # External reasoning clients may request work, but must never administer nodes
 # or resolve the approval gate. Enforce this at token issuance and validation.
@@ -26,6 +28,8 @@ ALL_SCOPES = {
     SCOPE_DEPLOY_EXECUTE,
     SCOPE_NODES_ADMIN,
     SCOPE_TASKS_APPROVE,
+    SCOPE_SESSIONS_READ,
+    SCOPE_BOX_EXECUTE,
     "box:read",
     "beeper:read",
 }
