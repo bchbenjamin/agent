@@ -29,3 +29,14 @@ The owner's Gemini web Developer Mode offers an HTTPS MCP URL and optional OAuth
 ## Tests
 
 Run the existing local protocol verifier with the client token file (no secret is printed). Verify client identity, tool list, then queue a read-only hostname task and poll its ID. Inspect optional integrations individually and preserve existing approvals.
+
+## Optional integration configuration (separate from core upgrade)
+
+After core activation, configure each available integration independently with the existing authorized Hermes credential. These operations update only the protected MCP environment; they do not overwrite Hermes's credentials or restart any service:
+```sh
+sudo python3 deployment/clients/integration-env.py box
+sudo python3 deployment/clients/integration-env.py history
+sudo python3 deployment/clients/integration-env.py beeper
+sudo systemctl restart personal-ai-mcp.service
+```
+A missing, ambiguous or expired credential is reported without printing it. In particular, a Beeper access token is not a refresh token; if its expiry is missing or it is expired, use Beeper's supported dedicated access-token flow. Do not blindly copy the refresh token. Test one integration at a time after restarting MCP.
