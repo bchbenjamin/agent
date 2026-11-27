@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -52,6 +53,9 @@ AVAILABLE_TOOLS = [
             "required": ["query"],
         },
     },
+    {"name": "client_capabilities", "description": "Inspect authenticated scopes.", "inputSchema": {"type": "object", "properties": {}}},
+    {"name": "read_context_document", "description": "Read a bounded memory page.", "inputSchema": {"type": "object", "properties": {"document_id": {"type": "string"}, "offset": {"type": "integer"}, "limit": {"type": "integer"}}, "required": ["document_id"]}},
+    {"name": "remember_context", "description": "Save explicitly owner-approved memory.", "inputSchema": {"type": "object", "properties": {"title": {"type": "string"}, "body": {"type": "string"}, "kind": {"type": "string"}, "owner_confirmed": {"type": "boolean"}}, "required": ["title", "body", "owner_confirmed"]}},
 ]
 
 
@@ -92,6 +96,13 @@ class MCPProtocolAdapter:
         self, tool_name: str, arguments: dict[str, Any], client_token: str | None = None
     ):
         routes = {
+            "client_capabilities": ("GET", "/v1/auth/me", None),
+            "remember_context": ("POST", "/v1/context/remember", arguments),
+            "read_context_document": (
+                "GET",
+                f"/v1/context/documents/{quote(str(arguments.get('document_id', '')), safe='')}?offset={int(arguments.get('offset', 0))}&limit={int(arguments.get('limit', 12000))}",
+                None,
+            ),
             "list_nodes": ("GET", "/v1/nodes", None),
             "get_node_status": (
                 "GET",

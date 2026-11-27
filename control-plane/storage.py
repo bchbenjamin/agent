@@ -447,6 +447,21 @@ class SQLiteStore:
             )
         return doc_id
 
+    def get_document(self, document_id: str, offset: int = 0, limit: int = 12000) -> dict | None:
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT document_id,title,source,updated_at,length(body) AS total_chars,"
+                "substr(body,?,?) AS body FROM context_documents WHERE document_id=?",
+                (offset + 1, limit, document_id),
+            ).fetchone()
+        if row is None:
+            return None
+        result = dict(row)
+        result["offset"] = offset
+        end = offset + len(result["body"])
+        result["next_offset"] = end if end < result["total_chars"] else None
+        return result
+
     def query_context(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         terms = [t.strip() for t in query.split() if t.strip()]
         if not terms:

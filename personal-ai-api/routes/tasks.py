@@ -57,6 +57,14 @@ def submit_task(
     needs_approval = ScopeValidator.requires_explicit_approval(
         body.operation
     ) or ScopeValidator.requires_payload_approval(body.operation, body.payload)
+    if client["client_type"] == "external-brain" and body.operation in {"exec", "shell"}:
+        # Only tightly bounded, fixed health probes can avoid owner approval.
+        # All other command execution requires the existing out-of-band approval queue.
+        argv = body.payload.get("argv")
+        readonly_probes = (["hostname"], ["uptime"], ["uname", "-m"], ["free", "-m"],
+                           ["df", "-h"], ["lsblk", "-o", "NAME,SIZE,TYPE,MOUNTPOINTS"])
+        if body.operation == "shell" or argv not in readonly_probes or set(body.payload) - {"argv", "timeout"}:
+            needs_approval = True
     get_store().create_task(
         {
             "task_id": task_id,

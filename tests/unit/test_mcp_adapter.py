@@ -19,7 +19,7 @@ def test_adapter_forwards_scoped_bearer_and_maps_tool_calls():
     assert result["result"]["nodes"][0]["node_id"] == "pi5"
     assert seen[0].url.path == "/v1/nodes"
     assert seen[0].headers["authorization"] == "Bearer client-token"
-    assert len(AVAILABLE_TOOLS) == 5
+    assert len(AVAILABLE_TOOLS) == 8
 
 
 def test_unknown_mcp_tool_is_rejected_without_api_call():
@@ -43,4 +43,9 @@ def test_official_mcp_server_registers_expected_tools():
         "submit_task",
         "get_task",
         "query_context",
+        "client_capabilities",
+        "read_context_document",
+        "remember_context",
+        "list_integrations",
+        "read_integration",
     }

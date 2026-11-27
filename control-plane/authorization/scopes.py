@@ -22,6 +22,8 @@ ALL_SCOPES = {
     SCOPE_DEPLOY_EXECUTE,
     SCOPE_NODES_ADMIN,
     SCOPE_TASKS_APPROVE,
+    "box:read",
+    "beeper:read",
 }
 ADMIN_SCOPES = set(ALL_SCOPES)
 
