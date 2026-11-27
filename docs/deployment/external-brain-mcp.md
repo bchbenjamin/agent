@@ -27,4 +27,16 @@ Optional direct read integrations: set `PAI_BOX_MCP_TOKEN` and/or `PAI_BEEPER_MC
 
 On the Pi, verify the actual installed repository and service paths, inspect local changes, back up the SQLite database using SQLite's online backup interface and back up the installed source. Apply only the new reviewed tracked files to the existing root-owned /opt/personal-ai checkout, retaining venv, configs, tokens, and systemd units. Do not rerun first-install provisioning. Run tests against a temporary database, then restart personal-ai-api and personal-ai-mcp only. Check active services and the existing ingress policy; no new public API write routes are needed because memory writes pass through authenticated MCP to loopback API.
 
+For the reviewed in-place upgrade on the canonical Pi checkout, run
+`sudo bash deployment/install/upgrade-external-brain-mcp.sh` from the repository
+root in an interactive terminal. It verifies the SSD mount and current services,
+creates a SQLite online backup and installed-source archive under
+`/mnt/pi_data/personal-ai-upgrade-*`, installs only the reviewed Python files,
+reuses existing Box/Beeper credentials without printing them, restarts the API
+and MCP services (not the node agent), and writes a separate restricted Claude
+credential to `~/.config/personal-ai/external-brain/claude.token` with mode
+0600. It refuses to overwrite an existing file at that path. This is an
+administrative operation; do not run it through a non-interactive shell that
+cannot request the sudo password.
+
 Test with a fresh restricted external-brain credential, initially over loopback, then the supported private or public transport: initialize and list tools, client identity, node status, queue hostname and poll the existing task until completed, query a benign indexed document, explicitly approve a synthetic memory record, read it from the separate Hermes client, restart MCP and read again. Verify a read-only client cannot write and an external-brain client cannot self-approve or access a task owned by another client. Test optional integrations using invented search text, not real chat content. Verify Gateway inference is not called during any of these operations. Do not claim a client connection or a live device test until actually observed.
