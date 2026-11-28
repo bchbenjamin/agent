@@ -41,3 +41,13 @@ def test_migration_rejects_queued_tasks(tmp_path):
     with pytest.raises(ValueError, match="outstanding tasks"):
         helper.snapshot(Path(store.path), tmp_path / "copy.sqlite3", quiescent=True)
     assert helper.snapshot(Path(store.path), tmp_path / "ordinary.sqlite3") == {"queued":1}
+
+def test_snapshot_rejects_broken_audit_chain(tmp_path):
+    original = tmp_path / "tampered.sqlite3"
+    store = SQLiteStore(str(original))
+    store.append_audit({"operation": "test", "result": "success"})
+    with sqlite3.connect(original) as conn:
+        conn.execute("UPDATE audit_events SET result='tampered' WHERE seq=1")
+    with pytest.raises(ValueError, match="Audit-chain"):
+        helper.snapshot(original, tmp_path / "rejected.sqlite3")
+    assert not (tmp_path / "rejected.sqlite3").exists()

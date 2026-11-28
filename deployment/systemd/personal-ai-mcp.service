@@ -2,6 +2,8 @@
 Description=Personal AI MCP Protocol Adapter
 After=personal-ai-api.service
 Requires=personal-ai-api.service
+StartLimitIntervalSec=10min
+StartLimitBurst=5
 
 [Service]
 Type=simple

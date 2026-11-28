@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Restore API/MCP services only after the expected SSD is already mounted."""
+"""Recover core services only when the verified microSD database exists.
 
+This helper never mounts, repairs, initializes, or writes to the optional SSD.
+"""
 from __future__ import annotations
 
 import subprocess
 import time
+from pathlib import Path
 from urllib.request import urlopen
 
-MOUNT = "/mnt/pi_data"
-EXPECTED_UUID = "cbdf283b-2951-44de-945e-c082bf87f337"
+DB = Path("/var/lib/pai-api/control-plane.sqlite3")
+ENV = Path("/etc/personal-ai/api.env")
 
 
 def _run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -18,11 +21,14 @@ def _run(*args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(args, 124, "", "command timed out")
 
 
-def _verified_mount() -> bool:
-    # Do not mount or fsck a possibly unstable volume from a retry timer.
-    # fstab owns mounting; this unit only recovers services after it succeeds.
-    result = _run("findmnt", "-n", "-o", "UUID", "--target", MOUNT)
-    return result.returncode == 0 and result.stdout.strip() == EXPECTED_UUID
+def _configured_database() -> str | None:
+    try:
+        for line in ENV.read_text().splitlines():
+            if line.startswith("PAI_DB_PATH="):
+                return line.partition("=")[2].strip()
+    except OSError:
+        return None
+    return None
 
 
 def _api_healthy(attempts: int = 20) -> bool:
@@ -39,16 +45,14 @@ def _api_healthy(attempts: int = 20) -> bool:
 
 
 def recover() -> int:
-    """Return success when storage is absent; retry on the next timer tick."""
-    if not _verified_mount():
+    # Critically, never let the API initialize an empty DB after a missing drive.
+    if _configured_database() != str(DB) or not DB.is_file() or DB.is_symlink():
         return 0
-
     if _run("systemctl", "is-active", "--quiet", "personal-ai-api.service").returncode != 0:
         if _run("systemctl", "start", "personal-ai-api.service").returncode != 0:
             return 1
     if not _api_healthy():
         return 1
-
     if _run("systemctl", "is-active", "--quiet", "personal-ai-mcp.service").returncode != 0:
         if _run("systemctl", "start", "personal-ai-mcp.service").returncode != 0:
             return 1

@@ -51,6 +51,6 @@ Audit events include event ID, timestamp, client/user, node, operation, resource
 
 Verify the chain with:
 
-    sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli verify-audit
+    sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli verify-audit
 
 The chain is tamper-evident, not an immutable or signed ledger. Protect the database with filesystem permissions and encrypted off-device backups. Never store bearer tokens, passwords, command output, message bodies or private file contents in audit details.

@@ -9,7 +9,7 @@ steps, not an automatically collected live inventory.
 
 - Raspberry Pi 5 4 GB, aarch64; permanent 64 GB microSD boot.
 - 256 GB OSC SSD, ext4, UUID cbdf283b-2951-44de-945e-c082bf87f337,
-  mounted at /mnt/pi_data; control-plane DB /mnt/pi_data/personal-ai/pai.sqlite3.
+  optional at /mnt/pi_data; target control-plane DB /var/lib/pai-api/control-plane.sqlite3 on microSD.
 - Owner bchbenjamin; system services personal-ai-api, personal-ai-mcp,
   personal-ai-node, beeper, tailscaled; user Hermes gateway
   hermes-gateway-e86e8d0b and ingress/origin services. Verify enablement
@@ -63,14 +63,10 @@ separately. Check public relay with authorized client; 401 alone is not
 a proof of successful tool calls. Never print credentials or conversations
 in diagnostics. A crash-interrupted task may require reconciliation.
 
-The repository's storage-recovery timer keeps the API and MCP stopped until
-the expected SSD UUID is mounted, then retries service activation. It never
-mounts or fscks the device. On the 2026-11-28 post-boot inspection, that timer
-was not yet installed on the host. The SSD UUID was absent, kernel logs showed
-repeated undervoltage and USB disconnects, and the API/MCP correctly remained
-inactive behind their mount dependencies. Beeper was running as a user-started
-desktop process while its system unit had failed on a dangling AppImage path;
-the stable symlink now resolves to the installed 4.3.366 image, but the
-root-owned unit still needs installation/reset. Recheck after stabilizing the
-USB power path; don't claim reboot recovery before authenticated MCP execution
-succeeds.
+The current storage design places essential state on the permanent microSD at
+`/var/lib/pai-api/control-plane.sqlite3`, `/var/lib/pai-agent`, and the
+canonical Hermes runtime in the owner's home. The removable SSD is optional.
+The 2026-11-28 inspection found it absent after repeated USB disconnects. The
+original production database could not be recovered from the microSD during
+that inspection; no replacement database should be initialized until the
+original SSD or a verified backup is available.

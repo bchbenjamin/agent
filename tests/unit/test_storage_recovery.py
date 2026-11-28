@@ -18,15 +18,24 @@ def result(code=0, stdout=""):
 
 
 class TestStorageRecovery(unittest.TestCase):
-    def test_unmounted_volume_never_starts_services_or_attempts_mount(self):
-        with patch.object(recovery, "_run", return_value=result(1)) as run:
-            self.assertEqual(recovery.recover(), 0)
-            run.assert_called_once_with("findmnt", "-n", "-o", "UUID", "--target", recovery.MOUNT)
+    def test_core_units_have_no_optional_ssd_mount_dependency(self):
+        units = Path(__file__).resolve().parents[2] / "deployment/systemd"
+        for name in ("personal-ai-api.service", "personal-ai-node.service"):
+            text = (units / name).read_text()
+            self.assertNotIn("RequiresMountsFor=/mnt/pi_data", text)
+            self.assertNotIn("ReadWritePaths=/mnt/pi_data", text)
 
-    def test_wrong_volume_is_rejected(self):
-        with patch.object(recovery, "_run", return_value=result(stdout="not-the-pi-ssd\n")) as run:
+    def test_missing_microSD_database_never_starts_service(self):
+        with patch.object(recovery, "_configured_database", return_value=str(recovery.DB)), patch.object(
+            type(recovery.DB), "is_file", return_value=False
+        ), patch.object(recovery, "_run") as run:
             self.assertEqual(recovery.recover(), 0)
-            run.assert_called_once_with("findmnt", "-n", "-o", "UUID", "--target", recovery.MOUNT)
+            run.assert_not_called()
+
+    def test_old_ssd_database_configuration_is_not_recovered_automatically(self):
+        with patch.object(recovery, "_configured_database", return_value="/mnt/pi_data/personal-ai/pai.sqlite3"), patch.object(recovery, "_run") as run:
+            self.assertEqual(recovery.recover(), 0)
+            run.assert_not_called()
 
     def test_services_start_only_after_exact_mount_and_api_health(self):
         calls = []
@@ -37,7 +46,9 @@ class TestStorageRecovery(unittest.TestCase):
                 return result(3)
             return result()
 
-        with patch.object(recovery, "_verified_mount", return_value=True), patch.object(
+        with patch.object(recovery, "_configured_database", return_value=str(recovery.DB)), patch.object(
+            type(recovery.DB), "is_file", return_value=True
+        ), patch.object(type(recovery.DB), "is_symlink", return_value=False), patch.object(
             recovery, "_run", side_effect=fake_run
         ), patch.object(recovery, "_api_healthy", return_value=True):
             self.assertEqual(recovery.recover(), 0)
@@ -56,7 +67,9 @@ class TestStorageRecovery(unittest.TestCase):
             calls.append(args)
             return result(3) if args[:2] == ("systemctl", "is-active") else result()
 
-        with patch.object(recovery, "_verified_mount", return_value=True), patch.object(
+        with patch.object(recovery, "_configured_database", return_value=str(recovery.DB)), patch.object(
+            type(recovery.DB), "is_file", return_value=True
+        ), patch.object(type(recovery.DB), "is_symlink", return_value=False), patch.object(
             recovery, "_run", side_effect=fake_run
         ), patch.object(recovery, "_api_healthy", return_value=False):
             self.assertEqual(recovery.recover(), 1)

@@ -2,8 +2,8 @@
 Description=Personal AI API and Control Plane
 After=network-online.target
 Wants=network-online.target
-RequiresMountsFor=/mnt/pi_data
-ConditionPathIsMountPoint=/mnt/pi_data
+StartLimitIntervalSec=10min
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -18,7 +18,7 @@ UMask=0077
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
-ReadWritePaths=/mnt/pi_data/personal-ai /var/lib/pai-api
+ReadWritePaths=/var/lib/pai-api
 LockPersonality=true
 MemoryDenyWriteExecute=true
 

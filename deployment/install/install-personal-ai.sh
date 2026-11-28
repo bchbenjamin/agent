@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # First deployment of the Personal AI control plane, MCP adapter and Pi node agent.
-# Run as bchbenjamin from a clean checkout after verifying /mnt/pi_data.
+# Run as bchbenjamin from a clean checkout. Essential state lives on the boot volume.
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TARGET=/opt/personal-ai
@@ -19,14 +19,6 @@ if [ "$(id -u)" -eq 0 ] || [ "$USER" != "$USER_NAME" ]; then
   exit 1
 fi
 [ "$(uname -m)" = "aarch64" ] || { echo "Expected ARM64/aarch64." >&2; exit 1; }
-mountpoint -q /mnt/pi_data || { echo "/mnt/pi_data must be mounted; refusing to put state on the boot card." >&2; exit 1; }
-EXPECTED_DATA_UUID="cbdf283b-2951-44de-945e-c082bf87f337"
-ACTUAL_DATA_UUID="$(findmnt -n -o UUID --target /mnt/pi_data)"
-[ "$ACTUAL_DATA_UUID" = "$EXPECTED_DATA_UUID" ] || {
-  echo "Wrong data volume at /mnt/pi_data: expected UUID $EXPECTED_DATA_UUID, found $ACTUAL_DATA_UUID." >&2
-  exit 1
-}
-
 sudo apt-get update
 sudo apt-get install -y python3 python3-venv python3-pip curl sudo git
 if [ -L "$TARGET" ] || { [ -e "$TARGET" ] && [ "$(stat -c %u "$TARGET")" != 0 ]; }; then
@@ -44,9 +36,7 @@ for service_user in "$API_USER" "$MCP_USER" "$NODE_AGENT_USER"; do
     sudo useradd --system --user-group --home-dir "/var/lib/$service_user" --create-home --shell /usr/sbin/nologin "$service_user"
   fi
 done
-sudo install -d -o "$API_USER" -g "$API_USER" -m 0700 /mnt/pi_data/personal-ai /var/lib/pai-api
-sudo chown -R "$API_USER:$API_USER" /mnt/pi_data/personal-ai
-sudo chmod 0700 /mnt/pi_data/personal-ai
+sudo install -d -o "$API_USER" -g "$API_USER" -m 0700 /var/lib/pai-api
 sudo install -d -o "$MCP_USER" -g "$MCP_USER" -m 0700 /var/lib/pai-mcp
 sudo install -d -o "$NODE_AGENT_USER" -g "$NODE_AGENT_USER" -m 0700 /var/lib/pai-agent /var/lib/pai-agent/pending-results
 sudo install -d -o root -g root -m 0755 /etc/personal-ai /usr/local/libexec
@@ -59,7 +49,7 @@ if ! sudo test -f "$API_ENV"; then
   TMP_ENV="$(mktemp)"
   umask 077
   cat > "$TMP_ENV" <<EOF
-PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3
+PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3
 PAI_BOOTSTRAP_TOKEN=$BOOTSTRAP_TOKEN
 PAI_NODE_ENROLLMENT_TOKEN=$ENROLL_TOKEN
 EOF
@@ -71,6 +61,12 @@ EOF
   rm -f "$TMP_ADMIN"
   NEW_ADMIN=1
 else
+  EXISTING_DB="$(sudo sed -n 's/^PAI_DB_PATH=//p' "$API_ENV" | head -1)"
+  if [ -z "$EXISTING_DB" ] || ! sudo test -s "$EXISTING_DB"; then
+    echo "Existing API configuration references no production database; refusing to start an empty replacement. Recover and migrate the verified database first." >&2
+    exit 2
+  fi
+  sudo python3 "$TARGET/deployment/backup/control-plane-snapshot.py" verify "$EXISTING_DB"
   BOOTSTRAP_TOKEN="$(sudo sed -n 's/^PAI_BOOTSTRAP_TOKEN=//p' "$API_ENV" | head -1)"
   ENROLL_TOKEN="$(sudo sed -n 's/^PAI_NODE_ENROLLMENT_TOKEN=//p' "$API_ENV" | head -1)"
   if [ -n "$BOOTSTRAP_TOKEN" ] && ! sudo test -f "$ADMIN_TOKEN_FILE"; then
@@ -114,12 +110,8 @@ sudo visudo -cf /etc/sudoers.d/pai-node-agent
 for unit in personal-ai-api.service personal-ai-mcp.service personal-ai-node.service; do
   sudo install -o root -g root -m 0644 "$TARGET/deployment/systemd/$unit" "/etc/systemd/system/$unit"
 done
-sudo install -o root -g root -m 0755 "$TARGET/deployment/recovery/personal-ai-storage-recovery.py" /usr/local/libexec/personal-ai-storage-recovery.py
-sudo install -o root -g root -m 0644 "$TARGET/deployment/systemd/personal-ai-storage-recovery.service" /etc/systemd/system/personal-ai-storage-recovery.service
-sudo install -o root -g root -m 0644 "$TARGET/deployment/systemd/personal-ai-storage-recovery.timer" /etc/systemd/system/personal-ai-storage-recovery.timer
 sudo systemctl daemon-reload
 sudo systemctl enable personal-ai-api.service personal-ai-mcp.service personal-ai-node.service
-sudo systemctl enable --now personal-ai-storage-recovery.timer
 sudo systemctl restart personal-ai-api.service
 
 for i in $(seq 1 30); do
@@ -167,5 +159,5 @@ echo "Node status: $(sudo systemctl is-active personal-ai-node.service)"
 if [ "$NEW_ADMIN" -eq 1 ]; then
   echo
   echo "Initial admin bearer token saved root-only at $ADMIN_TOKEN_FILE."
-  echo "Issue client credentials as pai-api with: sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 $TARGET/.venv/bin/python -m personal_ai_api.cli issue-token ..."
+  echo "Issue client credentials as pai-api with: sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 $TARGET/.venv/bin/python -m personal_ai_api.cli issue-token ..."
 fi

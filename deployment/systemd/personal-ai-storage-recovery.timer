@@ -1,5 +1,5 @@
 [Unit]
-Description=Retry Personal AI service recovery after boot or a verified SSD mount
+Description=Retry Personal AI core service recovery after boot
 
 [Timer]
 OnBootSec=30s

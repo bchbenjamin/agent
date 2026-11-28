@@ -2,6 +2,8 @@
 Description=Personal AI Node Agent
 After=network-online.target personal-ai-api.service
 Wants=network-online.target
+StartLimitIntervalSec=10min
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -18,7 +20,7 @@ UMask=0077
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=read-only
-ReadWritePaths=/home/bchbenjamin /mnt/pi_data /var/lib/pai-agent
+ReadWritePaths=/home/bchbenjamin /var/lib/pai-agent
 LockPersonality=true
 MemoryDenyWriteExecute=true
 

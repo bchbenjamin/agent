@@ -13,7 +13,7 @@ Raspberry Pi kernel, graphical session or user UID 1000.
 
 | Component | Now | Target |
 |---|---|---|
-| Personal AI API/SQLite | Pi SSD | Oracle persistent volume, single writer |
+| Personal AI API/SQLite | Pi microSD (`/var/lib/pai-api`) | Oracle persistent volume, single writer |
 | External MCP | Pi, Render relay | Oracle direct HTTPS ingress; Pi bridge retained for local integrations until federation is tested |
 | Hermes native runtime | Pi, ~/.hermes-pi | Oracle after a separate quiesced state migration |
 | Telegram | Pi Hermes polling | Exactly one canonical Hermes poller, eventually Oracle |
@@ -34,10 +34,10 @@ Raspberry Pi kernel, graphical session or user UID 1000.
 2. On the Pi, use the new online SQLite snapshot command as owner-approved
    administrator:
    ```sh
-   sudo install -d -m 0700 /mnt/pi_data/migration
+   sudo install -d -o pai-api -g pai-api -m 0700 /var/backups/personal-ai
    sudo python3 deployment/backup/control-plane-snapshot.py snapshot \
-     /mnt/pi_data/personal-ai/pai.sqlite3 \
-     /mnt/pi_data/migration/pai-rehearsal.sqlite3
+     /var/lib/pai-api/control-plane.sqlite3 \
+     /var/backups/personal-ai/pai-rehearsal.sqlite3
    ```
    A rehearsal copy contains private memory and hashed credentials; encrypt
    before off-device transfer. Keep it private and do not expose rehearsal
@@ -70,8 +70,8 @@ until rollback or an explicit cutover plan.
 
 ```sh
 sudo python3 deployment/backup/control-plane-snapshot.py snapshot \
-  /mnt/pi_data/personal-ai/pai.sqlite3 \
-  /mnt/pi_data/migration/pai-final.sqlite3 --quiescent
+  /var/lib/pai-api/control-plane.sqlite3 \
+  /var/backups/personal-ai/pai-final.sqlite3 --quiescent
 ```
 
 Transfer the encrypted snapshot to the new VM over authenticated transport.
@@ -189,7 +189,7 @@ recipients. Use a private destination on mounted persistent storage:
 ```sh
 sudo bash deployment/backup/prepare-migration-bundle.sh \
   /path/to/age-public-recipients.txt \
-  /mnt/pi_data/migration/hermes-final.tar.gz.age
+  /var/backups/personal-ai/hermes-final.tar.gz.age
 ```
 
 This is optional and intentionally requires stopped services. It includes
@@ -197,7 +197,7 @@ the consistent control-plane snapshot, source revision, the protected
 Personal AI configuration, canonical Hermes runtime and available client,
 node and user-systemd configuration. It does not archive a Beeper profile,
 browser passwords or the application venv. The temporary SQLite snapshot is
-protected on the SSD and cleaned up; the final archive is encrypted. Check
+protected on the microSD and cleaned up; the final archive is encrypted. Check
 for state symlinks and external dependencies before relying on the bundle.
 Do not copy the age private key alongside the backup. Verify decryption
 and inspect the archive in a protected staging directory; never extract

@@ -8,10 +8,9 @@ case "$1" in chatgpt|claude|gemini|codex) CLIENT="$1";; *) echo "Unknown client"
 OWNER=bchbenjamin
 HOME_DIR="$(getent passwd "$OWNER" | cut -d: -f6)"
 INSTALL=/opt/personal-ai
-DB=/mnt/pi_data/personal-ai/pai.sqlite3
+DB=/var/lib/pai-api/control-plane.sqlite3
 DEST="$HOME_DIR/.config/personal-ai/external-brain"
 FILE="$DEST/$CLIENT.token"
-mountpoint -q /mnt/pi_data
 [[ -f "$DB" && -x "$INSTALL/.venv/bin/python" ]] || { echo "Existing installation not found." >&2; exit 2; }
 [[ -n "$HOME_DIR" ]] || exit 2
 install -d -o "$OWNER" -g "$(id -gn "$OWNER")" -m 0700 "$DEST"

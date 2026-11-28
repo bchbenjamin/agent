@@ -1,5 +1,5 @@
 [Unit]
-Description=Recover Personal AI services after the expected data SSD is mounted
+Description=Recover Personal AI core services from verified microSD state
 After=local-fs.target
 StartLimitIntervalSec=10min
 StartLimitBurst=3

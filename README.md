@@ -70,7 +70,7 @@ Supported task operations: exec (argv, no shell), shell (explicit approval requi
 - The root-owned helper accepts only fixed systemd actions or execution as the normal bchbenjamin user. It is not a general-purpose root command runner; node credentials remain inaccessible to task processes.
 - MCP HTTP requests must carry an API-issued Bearer token. MCP forwards that token to the API; authorization is not duplicated in the adapter.
 - Audit events are hash-chained and persisted with the operational database.
-- The database belongs on /mnt/pi_data, not the permanent microSD boot device.
+- Essential control-plane state belongs on the permanent microSD service path `/var/lib/pai-api`; the removable SSD is optional bulk storage.
 - No unauthenticated public MCP endpoint is supported.
 
 ## Development on the Simular Box
@@ -87,11 +87,11 @@ For local stdio MCP, set PAI_API_TOKEN to a client-scoped token and use PAI_MCP_
 
 Issue production client tokens through the pai-api account:
 
-    sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id hermes-agent --client-type hermes --user owner --scopes context:read,nodes:read,files:read,terminal:execute,services:manage
+    sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id hermes-agent --client-type hermes --user owner --scopes context:read,nodes:read,files:read,terminal:execute,services:manage
 
 Issue a separate context-index token with only context:write:
 
-    sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id context-indexer --client-type indexer --user owner --scopes context:write
+    sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id context-indexer --client-type indexer --user owner --scopes context:write
 
 Save it mode 0600 at ~/.config/personal-ai/context-index-token, then index approved text files:
 
@@ -108,9 +108,9 @@ External live-service tests are opt-in with PAI_RUN_EXTERNAL_INTEGRATION=1.
 
 ## Raspberry Pi deployment
 
-The Pi's boot drive remains the 64 GB microSD. The 256 GB OSC SSD is data-only and must already be mounted at /mnt/pi_data. The installer refuses to continue if that mount is absent.
+The Pi's permanent boot drive is the 64 GB microSD. The 256 GB OSC SSD at `/mnt/pi_data` is optional bulk storage; its absence must not stop core Personal AI services. The control-plane DB is `/var/lib/pai-api/control-plane.sqlite3`.
 
-After verifying the SSD backup/recovery state and checking the current Pi services, run as bchbenjamin:
+After checking current Pi services and ensuring any existing state is recovered, run as bchbenjamin:
 
     bash deployment/install/install-personal-ai.sh
 

@@ -8,7 +8,7 @@ If the 64 GB microSD card fails or must be replaced:
 - Flash Debian 13 (trixie) 64-bit or Raspberry Pi OS 64-bit to a new microSD card.
 - Configure default user `bchbenjamin`.
 
-### 2. Connect Storage & Remount Data SSD
+### 2. Restore essential state to microSD; attach the optional SSD later
 - Attach the 256 GB OSC SATA SSD via the USB adapter.
 - Confirm SSD identity via `/dev/disk/by-id/ata-OSC_SSD_256GB_OSC20091900000001448`.
 - Add fstab entry:
@@ -26,7 +26,7 @@ bash deployment/install/bootstrap-node.sh pi5
 
 ### 4. Restore Secrets & State
 - Restore `.env` from secure offline backup into `~/.hermes-pi/.env` (mode `0600`).
-- Restore operational state databases from `/mnt/pi_data/backups/`.
+- Restore the verified control-plane snapshot to `/var/lib/pai-api/control-plane.sqlite3` using the documented guarded restore procedure. The optional SSD is not required for service startup.
 - Run `bash nodes/pi5/verify.sh` to confirm full recovery.
 
 For a future Oracle host, use [Oracle migration](oracle-migration.md), not

@@ -16,7 +16,7 @@ for svc in beeper.service lightdm.service wayvnc.service tailscaled.service; do 
 
 echo '\n2. Personal AI services'
 for svc in personal-ai-api.service personal-ai-mcp.service personal-ai-node.service; do check_service "$svc"; done
-check_service personal-ai-storage-recovery.timer
+printf "  %-30s %s\n" personal-ai-storage-recovery.timer "legacy; not required"
 
 echo '\n3. API health'
 curl -fsS --max-time 5 http://127.0.0.1:8000/health || echo '  Personal AI API unavailable'
@@ -43,18 +43,22 @@ echo '\n7. Beeper local MCP endpoint'
 beeper_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:23373/v0/mcp || echo 000)"
 printf '  Beeper endpoint: HTTP %s (401 is expected before OAuth)\n' "$beeper_code"
 
-echo '\n8. Data SSD'
+echo '\n8. Essential state on microSD'
 if mountpoint -q /mnt/pi_data; then
   actual_uuid="$(findmnt -n -o UUID --target /mnt/pi_data 2>/dev/null || true)"
   expected_uuid="cbdf283b-2951-44de-945e-c082bf87f337"
   printf '  UUID: %s (expected %s)\n' "${actual_uuid:-unknown}" "$expected_uuid"
   [ "$actual_uuid" = "$expected_uuid" ] || echo '  WARNING: mounted data volume UUID does not match the Pi SSD.'
   df -h /mnt/pi_data | tail -1
-  if [ -f /mnt/pi_data/personal-ai/pai.sqlite3 ]; then
-    stat -c '  Database owner/mode: %U:%G %a' /mnt/pi_data/personal-ai/pai.sqlite3
-  fi
+  echo '  Optional SSD mounted; core services must not depend on it.'
 else
-  echo '  /mnt/pi_data NOT MOUNTED'
+  echo '  Optional SSD absent; this must not block core services.'
+fi
+
+if [ -f /var/lib/pai-api/control-plane.sqlite3 ]; then
+  stat -c '  Control-plane DB on boot volume: %U:%G %a, %s bytes' /var/lib/pai-api/control-plane.sqlite3
+else
+  echo '  Control-plane DB missing at /var/lib/pai-api/control-plane.sqlite3'
 fi
 
 echo '\n9. Hermes user services'

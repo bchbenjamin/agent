@@ -2,9 +2,26 @@
 """Create/verify a consistent SQLite snapshot; sensitive output stays off Git."""
 from __future__ import annotations
 import argparse
+import hashlib
+import json
 import os
 from pathlib import Path
 import sqlite3
+ZERO_HASH = "0" * 64
+
+def verify_audit_chain(conn: sqlite3.Connection) -> bool:
+    previous = ZERO_HASH
+    columns = ("event_id", "timestamp", "client_id", "user_identity", "target_node",
+               "operation", "target_resource", "approval_status", "result", "client_ip", "details_json")
+    for row in conn.execute("SELECT " + ",".join(columns) + ",previous_hash,event_hash FROM audit_events ORDER BY seq"):
+        body = dict(zip(columns, row[:len(columns)]))
+        body["details"] = json.loads(body.pop("details_json"))
+        canonical = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        digest = hashlib.sha256((previous + canonical).encode()).hexdigest()
+        if row[-2] != previous or row[-1] != digest:
+            return False
+        previous = digest
+    return True
 
 REQUIRED = {"clients", "tokens", "nodes", "tasks", "audit_events", "context_documents"}
 
@@ -16,6 +33,8 @@ def validate(conn: sqlite3.Connection, *, quiescent: bool = False) -> dict:
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     if not REQUIRED <= tables:
         raise ValueError("Not a Personal AI control-plane database")
+    if not verify_audit_chain(conn):
+        raise ValueError("Audit-chain verification failed")
     counts = dict(conn.execute("SELECT status, COUNT(*) FROM tasks GROUP BY status"))
     if quiescent and any(counts.get(s, 0) for s in ("running", "queued", "approval_required")):
         raise ValueError("Drain or reconcile outstanding tasks before migration")

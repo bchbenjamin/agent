@@ -10,6 +10,13 @@ hardware:
   cpu_cores: 4
 
 storage:
+  essential_state:
+    filesystem: "microSD root filesystem"
+    paths:
+      - "/var/lib/pai-api/control-plane.sqlite3"
+      - "/var/lib/pai-agent"
+      - "/home/bchbenjamin/.hermes-pi"
+    external_ssd_required: false
   boot_drive:
     device: "/dev/mmcblk0"
     type: "microSD"
@@ -25,7 +32,7 @@ storage:
         mount: "/"
         fstype: "ext4"
         uuid: "a3680812-f783-41ac-ab86-ac9e13347b2c"
-  secondary_drive:
+  optional_bulk_drive:
     device: "/dev/sda"
     type: "SATA SSD (OSC 256GB via USB-SATA 14cd:6116 bridge)"
     serial: "OSC20091900000001448"

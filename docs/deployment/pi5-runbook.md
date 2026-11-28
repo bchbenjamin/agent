@@ -6,25 +6,16 @@
 - OS: Debian GNU/Linux 13 (trixie), aarch64.
 - Primary user: bchbenjamin (UID 1000).
 - Boot drive: 64 GB microSD (mmcblk0), permanent boot device.
-- Secondary data drive: 256 GB OSC SATA SSD, mounted at /mnt/pi_data.
+- Optional bulk data drive: 256 GB OSC SATA SSD, mounted at /mnt/pi_data when available.
 - SSD data filesystem: ext4, label PI_DATA, UUID recorded in nodes/pi5/node-spec.yaml.
 
-The SSD is data-only. Never format or repartition it as part of normal deployment. The installer refuses to continue unless /mnt/pi_data is already mounted.
-
-The API and MCP units remain guarded by `RequiresMountsFor=/mnt/pi_data` and
-`ConditionPathIsMountPoint=/mnt/pi_data`. The enabled
-`personal-ai-storage-recovery.timer` starts the API and MCP only after fstab
-has mounted the expected UUID and the API health check passes. It does not
-mount or fsck a device. If the SSD is absent at boot, first stabilize and
-verify the power/cable/enclosure and filesystem, then mount the expected
-volume; the timer will recover services after that. Never run filesystem
-repair against an unstable or unverified device.
+The SSD is optional bulk storage. No essential service may require it. Core state, including the API database and node result spool, is on the microSD under `/var/lib`. Do not format or repartition the SSD; if it is absent or unstable, continue operating from the boot volume and recover it separately.
 
 ## Pre-deployment checks
 
 1. Inspect the actual device and mount table.
 2. Confirm the Beeper data recovery/backup is verified.
-3. Confirm the SSD's UUID and fstab nofail entry match the node specification.
+3. If present, confirm the optional SSD UUID and fstab nofail entry match the node specification.
 4. Confirm Tailscale and KDE Connect are healthy.
 5. Confirm Hermes, Beeper and computer-use-linux still work locally.
 6. Confirm the AI Gateway and Claude Code credentials/configuration are unchanged.
@@ -45,7 +36,7 @@ The installer:
 - Stores the initial admin token root-only at /etc/personal-ai/admin-token.
 - Creates a dedicated pai-agent system account; its node token lives at /var/lib/pai-agent/node-token (mode 0600).
 - Runs the daemon as pai-agent and launches approved task processes as bchbenjamin through the root-owned fixed helper. The task process cannot read the pai-agent token directory or the API database.
-- Stores the SQLite control-plane database on /mnt/pi_data/personal-ai.
+- Stores the SQLite control-plane database on `/var/lib/pai-api/control-plane.sqlite3` on the permanent microSD. The SSD is not required.
 - Installs the API, MCP and node-agent systemd services.
 - Installs the root-owned, fixed-command systemd helper and sudoers rule.
 - Enrolls the Pi node with an API-issued node credential.
@@ -55,10 +46,9 @@ The installer reports the path of the root-only admin token at `/etc/personal-ai
 
 For an existing install, run
 `bash deployment/install/install-pi-recovery.sh` as the owner from the
-checkout. It can be run without the SSD mounted. It installs/enables the
-service recovery timer and points the stable `~/Applications/Beeper.AppImage` path at
+checkout. It can be run without the SSD mounted. It points the stable `~/Applications/Beeper.AppImage` path at
 the newest installed ARM64 AppImage, then installs the graphical-session-aware
-system unit. It does not stop or start Beeper when a desktop process is open.
+system unit. Current installers do not enable the legacy SSD recovery timer. It does not stop or start Beeper when a desktop process is open.
 
 ## Services
 
@@ -95,11 +85,11 @@ Issue separate tokens for Hermes and every external MCP client. Morphic chat use
 
 Example:
 
-    sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id hermes-agent --client-type hermes --user owner --scopes context:read,nodes:read,files:read,terminal:execute,services:manage
+    sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id hermes-agent --client-type hermes --user owner --scopes context:read,nodes:read,files:read,terminal:execute,services:manage
 
 Issue a separate context:write-only token for the indexer:
 
-    sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id context-indexer --client-type indexer --user owner --scopes context:write
+    sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id context-indexer --client-type indexer --user owner --scopes context:write
 
 Save the returned token mode 0600 at ~/.config/personal-ai/context-index-token. Run the indexer as bchbenjamin with PAI_API_URL=http://127.0.0.1:8000 and PAI_CONTEXT_INDEX_ROOTS set to approved roots:
 
@@ -121,7 +111,7 @@ The MCP server controls the live desktop; keep it local and review mutating acti
 
 ## Audit and context
 
-    sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli verify-audit
+    sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli verify-audit
 
 Set explicit context index roots before running index-path. Do not index Beeper databases, keyrings, environment files, OAuth tokens or private credentials.
 
@@ -132,3 +122,35 @@ Run:
     bash nodes/pi5/verify.sh
 
 The verification script also reports pre-existing Hermes, Beeper, computer-use-linux and storage conditions. Investigate warnings before declaring deployment complete.
+
+## Existing Pi: guarded SSD-to-microSD database migration
+
+The ordinary installer is not a migration tool. It refuses an existing
+installation whose configured database is missing or fails schema, SQLite,
+foreign-key, or audit-chain validation. Do not point the API at a new path
+until the original control-plane DB or a verified backup is available.
+
+After the original SSD is stable and mounted with its recorded UUID (or a
+verified backup is staged in a protected local file), drain/reconcile queued,
+running, and approval-required tasks. Stop `personal-ai-mcp.service`,
+`personal-ai-api.service`, and `personal-ai-node.service`, then run from the synchronized checkout:
+
+    sudo bash deployment/install/migrate-control-plane-to-microsd.sh
+
+For an independently verified backup at another protected path, pass that
+path as the sole argument. The script requires the destination not to exist,
+uses SQLite's online backup API, validates the Personal AI schema and audit
+chain, preserves the source, updates only `PAI_DB_PATH`, backs up the current
+API environment and unit files under `/var/backups/personal-ai`, installs the
+microSD-backed API/node units, then starts API, MCP, and node in dependency
+order. Verify existing client authentication, audit chain, context, task
+state, and node heartbeat before cleanup. Keep the original SSD database and
+pre-migration backups until those checks pass. No reboot is part of migration.
+
+Rollback: stop MCP/API/node; restore `/etc/personal-ai/api.env` and the two
+unit files from the timestamped `api.env.before-microsd.*` and
+`systemd-before-microsd.*` backups; run `systemctl daemon-reload`; restore the
+old DB path in `PAI_DB_PATH` and start services only after the original source
+is mounted and verified. The migrated copy is retained at
+`/var/lib/pai-api/control-plane.sqlite3`; do not delete either copy during
+rollback.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Owner-run Pi migration export. Requires stopped control-plane and Hermes
-# writers, a verified SSD mount, age, and an owner-controlled age recipient.
+# writers, a valid database on microSD, age, and an owner-controlled recipient.
 # Output is an encrypted archive; no plaintext tar archive is created.
 set -Eeuo pipefail
 umask 077
@@ -12,7 +12,6 @@ DEST="$(realpath -m "$2")"
 [[ -s "$RECIPIENTS" && "$DEST" == *.tar.gz.age && ! -e "$DEST" && ! -L "$DEST" ]] || exit 2
 [[ -d "$(dirname "$DEST")" ]] || exit 2
 command -v age >/dev/null || { echo "Install age from the OS package repository first." >&2; exit 2; }
-mountpoint -q /mnt/pi_data
 OWNER=bchbenjamin
 OWNER_HOME="$(getent passwd "$OWNER" | cut -d: -f6)"
 [[ -d "$OWNER_HOME/.hermes-pi" && ! -L "$OWNER_HOME/.hermes-pi" ]] || { echo "Inspect canonical Hermes runtime path first." >&2; exit 2; }
@@ -26,7 +25,7 @@ hermes_unit=hermes-gateway-e86e8d0b.service
 state="$(runuser -u "$OWNER" -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" systemctl --user show -p ActiveState --value "$hermes_unit")"
 [[ "$state" == inactive || "$state" == failed ]] || { echo "Stop the canonical Hermes gateway before export." >&2; exit 2; }
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-STAGING="$(mktemp -d /mnt/pi_data/.migration-stage.XXXXXXXX)"
+STAGING="$(mktemp -d /var/lib/pai-api/.migration-stage.XXXXXXXX)"
 PART=""
 cleanup() {
     rm -rf -- "$STAGING"
@@ -34,7 +33,7 @@ cleanup() {
 }
 trap cleanup EXIT
 python3 "$REPO/deployment/backup/control-plane-snapshot.py" snapshot \
-    /mnt/pi_data/personal-ai/pai.sqlite3 "$STAGING/control-plane.sqlite3" --quiescent
+    /var/lib/pai-api/control-plane.sqlite3 "$STAGING/control-plane.sqlite3" --quiescent
 if [[ -d /var/lib/pai-agent/pending-results ]] &&
    [[ -n "$(find /var/lib/pai-agent/pending-results -maxdepth 1 -type f -print -quit)" ]]; then
     echo "Pending node results remain; reconcile before exporting." >&2

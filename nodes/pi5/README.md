@@ -6,7 +6,7 @@ The Raspberry Pi 5 is the primary on-premises execution node in the personal AI 
 - **Beeper Desktop**: Persistent messaging bridge running as a systemd service with a local OAuth-authenticated MCP server.
 - **Computer Use**: Hermes native Wayland desktop control; preserve the existing upstream computer-use-linux local stdio MCP if installed.
 - **Personal AI control plane**: authenticated API, MCP adapter and isolated pai-agent node daemon. The node daemon launches task processes as bchbenjamin through a restricted helper; it does not run as root.
-- **Secondary SSD Storage**: 256 GB ext4 partition mounted at `/mnt/pi_data` for durable, non-boot data storage.
+- **Optional SSD Storage**: 256 GB ext4 partition at `/mnt/pi_data` for bulk datasets and secondary backups; no essential service depends on it.
 
 ## Files
 - `node-spec.yaml`: Exact hardware, filesystem, and service profile of this node.

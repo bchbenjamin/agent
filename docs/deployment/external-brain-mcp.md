@@ -10,7 +10,7 @@ This is a direct tool interface, not an inference proxy. ChatGPT, Claude, Gemini
 - Claude remote custom connectors support a fixed Authorization header. For ChatGPT, use the supported OAuth client flow or Secure MCP Tunnel with appropriate authentication; do not put a bearer in a URL, turn off authentication or assume account eligibility. OAuth is not implemented by this adapter. Gemini custom MCP availability depends on the account and supported surface.
 - Issue a distinct `external-brain` token per client. Do not use the bootstrap admin token. Start with `context:read,nodes:read,terminal:execute`; add `context:write`, `box:read`, `box:execute`, `beeper:read` and `sessions:read` only as explicitly desired. Never grant `tasks:approve` or `nodes:admin` to an external brain. `box:execute` exposes only fixed, read-only health probes; it does not proxy arbitrary commands.
 - Example on the Pi (run locally, protect the result):
-  `sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id claude-external --client-type external-brain --scopes context:read,nodes:read,terminal:execute,context:write`
+  `sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id claude-external --client-type external-brain --scopes context:read,nodes:read,terminal:execute,context:write`
 - Revocation: use the existing `revoke-client` command. Keep client credentials in the client credential store, never chat or Git.
 
 ## Capability and memory policy
@@ -29,9 +29,9 @@ On the Pi, verify the actual installed repository and service paths, inspect loc
 
 For the reviewed in-place upgrade on the canonical Pi checkout, run
 `sudo bash deployment/install/upgrade-external-brain-mcp.sh` from the repository
-root in an interactive terminal. It verifies the SSD mount and current services,
+root in an interactive terminal. It verifies the microSD-backed database and current services,
 creates a SQLite online backup and installed-source archive under
-`/mnt/pi_data/personal-ai-upgrade-*`, installs only the reviewed Python files,
+`/var/backups/personal-ai/upgrade-*`, installs only the reviewed Python files,
 reuses existing Box/Beeper credentials and the native Hermes API key without printing them, restarts the API
 and MCP services (not the node agent), and writes a separate restricted Claude
 credential to `~/.config/personal-ai/external-brain/claude.token` with mode

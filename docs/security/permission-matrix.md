@@ -21,21 +21,21 @@ Issue one token per client. Do not reuse the AI Gateway key as a Personal AI API
 
 Example context-indexer token:
 
-    sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id context-indexer --client-type indexer --user owner --scopes context:write
+    sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id context-indexer --client-type indexer --user owner --scopes context:write
 
 Save this token mode 0600 at ~/.config/personal-ai/context-index-token. It can only add documents; it cannot search context, submit tasks or administer nodes.
 
 Example Hermes token:
 
-    sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id hermes-agent --client-type hermes --user owner --scopes context:read,nodes:read,files:read,terminal:execute,services:manage
+    sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id hermes-agent --client-type hermes --user owner --scopes context:read,nodes:read,files:read,terminal:execute,services:manage
 
 Example Morphic token (includes approval capability):
 
-    sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id morphic-web --client-type morphic --user owner --scopes context:read,nodes:read,files:read,terminal:execute,services:manage,tasks:approve
+    sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli issue-token --client-id morphic-web --client-type morphic --user owner --scopes context:read,nodes:read,files:read,terminal:execute,services:manage,tasks:approve
 
 Revoke a token or all credentials for a client (run as pai-api):
 
-    sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli revoke-token --token '<token>'
-    sudo -u pai-api env PAI_DB_PATH=/mnt/pi_data/personal-ai/pai.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli revoke-client --client-id morphic-web
+    sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli revoke-token --token '<token>'
+    sudo -u pai-api env PAI_DB_PATH=/var/lib/pai-api/control-plane.sqlite3 /opt/personal-ai/.venv/bin/python -m personal_ai_api.cli revoke-client --client-id morphic-web
 
 Only token hashes are persisted. Plaintext client/node tokens are returned once. The bootstrap admin token is root-only at /etc/personal-ai/admin-token.

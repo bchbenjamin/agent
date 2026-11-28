@@ -22,20 +22,19 @@ fi
 
 REPO="$(git -C "$(dirname "${BASH_SOURCE[0]}")/../.." rev-parse --show-toplevel)"
 INSTALL=/opt/personal-ai
-DB=/mnt/pi_data/personal-ai/pai.sqlite3
+DB=/var/lib/pai-api/control-plane.sqlite3
 OWNER=bchbenjamin
 OWNER_HOME="$(getent passwd "$OWNER" | cut -d: -f6)"
 MCP_ENV=/etc/personal-ai/mcp.env
 TOKEN_DIR="$OWNER_HOME/.config/personal-ai/external-brain"
 TOKEN_FILE="$TOKEN_DIR/claude.token"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-BACKUP="/mnt/pi_data/personal-ai-upgrade-${STAMP}"
+BACKUP="/var/backups/personal-ai/upgrade-${STAMP}"
 
 git -C "$REPO" merge-base --is-ancestor f285d3d HEAD || {
   echo "Repository does not contain required external-brain security commit f285d3d." >&2
   exit 2
 }
-mountpoint -q /mnt/pi_data || { echo "/mnt/pi_data is not mounted; refusing deployment." >&2; exit 2; }
 [[ -f "$DB" && -d "$INSTALL/.venv" && -f "$MCP_ENV" ]] || {
   echo "Expected installed API database, venv, or MCP environment is missing." >&2
   exit 2
@@ -49,7 +48,7 @@ if [[ -e "$TOKEN_FILE" ]]; then
 fi
 
 PHASE=backup
-install -d -o root -g root -m 0700 "$BACKUP"
+install -d -o root -g root -m 0700 /var/backups/personal-ai "$BACKUP"
 python3 - "$DB" "$BACKUP/pai.sqlite3" <<'PY'
 import os, sqlite3, sys
 source, destination = sys.argv[1:]
@@ -86,11 +85,7 @@ install -D -o root -g root -m 0644 "$REPO/pai_mcp/instructions.py" "$INSTALL/pai
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/integrations.py" "$INSTALL/pai_mcp/integrations.py"
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/hermes_sessions.py" "$INSTALL/pai_mcp/hermes_sessions.py"
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/server.py" "$INSTALL/pai_mcp/server.py"
-install -D -o root -g root -m 0755 "$REPO/deployment/recovery/personal-ai-storage-recovery.py" /usr/local/libexec/personal-ai-storage-recovery.py
-install -D -o root -g root -m 0644 "$REPO/deployment/systemd/personal-ai-storage-recovery.service" /etc/systemd/system/personal-ai-storage-recovery.service
-install -D -o root -g root -m 0644 "$REPO/deployment/systemd/personal-ai-storage-recovery.timer" /etc/systemd/system/personal-ai-storage-recovery.timer
 systemctl daemon-reload
-systemctl enable --now personal-ai-storage-recovery.timer
 echo "Installed reviewed source files into $INSTALL"
 
 # Reuse authorized Box and Beeper credentials from Hermes without displaying
