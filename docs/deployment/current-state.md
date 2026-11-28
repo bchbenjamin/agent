@@ -62,3 +62,15 @@ Verify actual authenticated hostname, memory retrieval, Beeper and Box
 separately. Check public relay with authorized client; 401 alone is not
 a proof of successful tool calls. Never print credentials or conversations
 in diagnostics. A crash-interrupted task may require reconciliation.
+
+The repository's storage-recovery timer keeps the API and MCP stopped until
+the expected SSD UUID is mounted, then retries service activation. It never
+mounts or fscks the device. On the 2026-11-28 post-boot inspection, that timer
+was not yet installed on the host. The SSD UUID was absent, kernel logs showed
+repeated undervoltage and USB disconnects, and the API/MCP correctly remained
+inactive behind their mount dependencies. Beeper was running as a user-started
+desktop process while its system unit had failed on a dangling AppImage path;
+the stable symlink now resolves to the installed 4.3.366 image, but the
+root-owned unit still needs installation/reset. Recheck after stabilizing the
+USB power path; don't claim reboot recovery before authenticated MCP execution
+succeeds.

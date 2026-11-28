@@ -11,6 +11,15 @@
 
 The SSD is data-only. Never format or repartition it as part of normal deployment. The installer refuses to continue unless /mnt/pi_data is already mounted.
 
+The API and MCP units remain guarded by `RequiresMountsFor=/mnt/pi_data` and
+`ConditionPathIsMountPoint=/mnt/pi_data`. The enabled
+`personal-ai-storage-recovery.timer` starts the API and MCP only after fstab
+has mounted the expected UUID and the API health check passes. It does not
+mount or fsck a device. If the SSD is absent at boot, first stabilize and
+verify the power/cable/enclosure and filesystem, then mount the expected
+volume; the timer will recover services after that. Never run filesystem
+repair against an unstable or unverified device.
+
 ## Pre-deployment checks
 
 1. Inspect the actual device and mount table.
@@ -43,6 +52,13 @@ The installer:
 - Does not format drives, alter the boot device, change Tailscale configuration or modify the AI Gateway.
 
 The installer reports the path of the root-only admin token at `/etc/personal-ai/admin-token`. Retrieve the token from a private administrator terminal only when needed. The API database is owned by pai-api and is not readable by the node-agent task identity.
+
+For an existing install, run
+`bash deployment/install/install-pi-recovery.sh` as the owner from the
+checkout. It can be run without the SSD mounted. It installs/enables the
+service recovery timer and points the stable `~/Applications/Beeper.AppImage` path at
+the newest installed ARM64 AppImage, then installs the graphical-session-aware
+system unit. It does not stop or start Beeper when a desktop process is open.
 
 ## Services
 

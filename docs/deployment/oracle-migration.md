@@ -28,6 +28,9 @@ Raspberry Pi kernel, graphical session or user UID 1000.
 1. Run the [Pi recovery checks](pi5-runbook.md), including an authenticated
    MCP discovery and real hostname task. Record actual deployed revision,
    service enablement and remaining integration failures, not raw secrets.
+   Confirm the Pi's service recovery timer and exact UUID mount as well; API/MCP
+   health without the data volume is not an acceptable recovery state. The
+   timer must not mount or repair an unstable volume.
 2. On the Pi, use the new online SQLite snapshot command as owner-approved
    administrator:
    ```sh

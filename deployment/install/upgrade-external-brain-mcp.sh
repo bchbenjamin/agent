@@ -86,6 +86,11 @@ install -D -o root -g root -m 0644 "$REPO/pai_mcp/instructions.py" "$INSTALL/pai
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/integrations.py" "$INSTALL/pai_mcp/integrations.py"
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/hermes_sessions.py" "$INSTALL/pai_mcp/hermes_sessions.py"
 install -D -o root -g root -m 0644 "$REPO/pai_mcp/server.py" "$INSTALL/pai_mcp/server.py"
+install -D -o root -g root -m 0755 "$REPO/deployment/recovery/personal-ai-storage-recovery.py" /usr/local/libexec/personal-ai-storage-recovery.py
+install -D -o root -g root -m 0644 "$REPO/deployment/systemd/personal-ai-storage-recovery.service" /etc/systemd/system/personal-ai-storage-recovery.service
+install -D -o root -g root -m 0644 "$REPO/deployment/systemd/personal-ai-storage-recovery.timer" /etc/systemd/system/personal-ai-storage-recovery.timer
+systemctl daemon-reload
+systemctl enable --now personal-ai-storage-recovery.timer
 echo "Installed reviewed source files into $INSTALL"
 
 # Reuse authorized Box and Beeper credentials from Hermes without displaying

@@ -1,0 +1,15 @@
+[Unit]
+Description=Recover Personal AI services after the expected data SSD is mounted
+After=local-fs.target
+StartLimitIntervalSec=10min
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/libexec/personal-ai-storage-recovery.py
+TimeoutStartSec=120
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true

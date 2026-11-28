@@ -114,8 +114,12 @@ sudo visudo -cf /etc/sudoers.d/pai-node-agent
 for unit in personal-ai-api.service personal-ai-mcp.service personal-ai-node.service; do
   sudo install -o root -g root -m 0644 "$TARGET/deployment/systemd/$unit" "/etc/systemd/system/$unit"
 done
+sudo install -o root -g root -m 0755 "$TARGET/deployment/recovery/personal-ai-storage-recovery.py" /usr/local/libexec/personal-ai-storage-recovery.py
+sudo install -o root -g root -m 0644 "$TARGET/deployment/systemd/personal-ai-storage-recovery.service" /etc/systemd/system/personal-ai-storage-recovery.service
+sudo install -o root -g root -m 0644 "$TARGET/deployment/systemd/personal-ai-storage-recovery.timer" /etc/systemd/system/personal-ai-storage-recovery.timer
 sudo systemctl daemon-reload
 sudo systemctl enable personal-ai-api.service personal-ai-mcp.service personal-ai-node.service
+sudo systemctl enable --now personal-ai-storage-recovery.timer
 sudo systemctl restart personal-ai-api.service
 
 for i in $(seq 1 30); do

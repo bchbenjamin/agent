@@ -5,9 +5,10 @@ HERMES_HOME="${HERMES_HOME:-$HOME/.hermes-pi}"
 printf '=== Raspberry Pi 5 / Personal AI Verification ===\n'
 
 check_service() {
-  local unit="$1" state
+  local unit="$1" state enabled
   state="$(systemctl is-active "$unit" 2>/dev/null || true)"
-  printf '  %-30s %s\n' "$unit" "${state:-unknown}"
+  enabled="$(systemctl is-enabled "$unit" 2>/dev/null || true)"
+  printf '  %-30s active=%-10s enabled=%s\n' "$unit" "${state:-unknown}" "${enabled:-unknown}"
 }
 
 echo '1. Core system services'
@@ -15,6 +16,7 @@ for svc in beeper.service lightdm.service wayvnc.service tailscaled.service; do 
 
 echo '\n2. Personal AI services'
 for svc in personal-ai-api.service personal-ai-mcp.service personal-ai-node.service; do check_service "$svc"; done
+check_service personal-ai-storage-recovery.timer
 
 echo '\n3. API health'
 curl -fsS --max-time 5 http://127.0.0.1:8000/health || echo '  Personal AI API unavailable'
@@ -43,7 +45,10 @@ printf '  Beeper endpoint: HTTP %s (401 is expected before OAuth)\n' "$beeper_co
 
 echo '\n8. Data SSD'
 if mountpoint -q /mnt/pi_data; then
-  printf '  UUID: '; findmnt -n -o UUID --target /mnt/pi_data
+  actual_uuid="$(findmnt -n -o UUID --target /mnt/pi_data 2>/dev/null || true)"
+  expected_uuid="cbdf283b-2951-44de-945e-c082bf87f337"
+  printf '  UUID: %s (expected %s)\n' "${actual_uuid:-unknown}" "$expected_uuid"
+  [ "$actual_uuid" = "$expected_uuid" ] || echo '  WARNING: mounted data volume UUID does not match the Pi SSD.'
   df -h /mnt/pi_data | tail -1
   if [ -f /mnt/pi_data/personal-ai/pai.sqlite3 ]; then
     stat -c '  Database owner/mode: %U:%G %a' /mnt/pi_data/personal-ai/pai.sqlite3

@@ -1,7 +1,9 @@
 [Unit]
 Description=Beeper Desktop Messaging Service
-After=network.target graphical.target user-1000.slice
-Wants=graphical.target
+After=network.target lightdm.service user-1000.slice
+Wants=lightdm.service
+StartLimitIntervalSec=5min
+StartLimitBurst=4
 
 [Service]
 Type=simple
@@ -12,10 +14,10 @@ Environment="DISPLAY=:0"
 Environment="WAYLAND_DISPLAY=wayland-0"
 Environment="XDG_RUNTIME_DIR=/run/user/1000"
 Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
-ExecStartPre=/bin/sh -c 'for i in $(seq 1 60); do [ -S /run/user/1000/wayland-0 ] && exit 0; sleep 1; done; exit 1'
-ExecStart=/home/bchbenjamin/Applications/Beeper-4.3.340-arm64.AppImage
-Restart=always
-RestartSec=5
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 90); do [ -S /run/user/1000/wayland-0 ] && [ -S /run/user/1000/bus ] && exit 0; sleep 1; done; echo "Wayland or D-Bus session socket not ready" >&2; exit 1'
+ExecStart=/home/bchbenjamin/Applications/Beeper.AppImage
+Restart=on-failure
+RestartSec=15
 
 [Install]
 WantedBy=multi-user.target
